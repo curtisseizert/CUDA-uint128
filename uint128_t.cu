@@ -14,60 +14,6 @@
 
 #include "uint128_t.cuh"
 
-/*
-class uint128_t{
-private:
-  uint64_t lo = 0, hi = 0; // d == most significant bits
-public:
-  __host__ __device__ uint128_t(){};
-
-  template<typename T>
-  __host__ __device__ uint128_t(const T & a){this->lo = a;}
-
-
-// operator overloading
-  template <typename T>
-  __host__ __device__ uint128_t & operator=(const T n){this->lo = n; return * this;}
-
-  template <typename T>
-  __host__ __device__ friend uint128_t operator+(uint128_t a, const T & b){return add128(a, b);}
-
-  template <typename T>
-  __host__ __device__ uint128_t operator+=(const T & b){return add128(*this, b);}
-
-  template <typename T>
-  __host__ __device__ uint128_t operator-=(const T & b){return sub128(*this, b);}
-
-  __host__ __device__ uint128_t & operator=(const uint128_t & n);
-
-  __host__ __device__ friend uint128_t operator-(uint128_t a, uint128_t b){return sub128(a, b);}
-  __host__ __device__ friend uint64_t operator/(uint128_t x, const uint64_t & v){return div128(x, v);}
-  __host__ __device__ friend bool operator<(uint128_t a, uint128_t b){return isLessThan(a, b);}
-  __host__ __device__ friend bool operator>(uint128_t a, uint128_t b){return isGreaterThan(a, b);}
-  __host__ __device__ friend bool operator<=(uint128_t a, uint128_t b){return isLessThanOrEqual(a, b);}
-  __host__ __device__ friend bool operator>=(uint128_t a, uint128_t b){return isGreaterThanOrEqual(a, b);}
-  __host__ __device__ friend bool operator==(uint128_t a, uint128_t b){return isEqualTo(a, b);}
-  __host__ __device__ friend bool operator!=(uint128_t a, uint128_t b){return isNotEqualTo(a, b);}
-
-// comparisons
-  __host__ __device__ static inline bool isLessThan(uint128_t a, uint128_t b);
-  __host__ __device__ static inline bool isLessThanOrEqual(uint128_t a, uint128_t b);
-  __host__ __device__ static inline bool isGreaterThan(uint128_t a, uint128_t b);
-  __host__ __device__ static inline bool isGreaterThanOrEqual(uint128_t a, uint128_t b);
-  __host__ __device__ static inline bool isEqualTo(uint128_t a, uint128_t b);
-  __host__ __device__ static inline bool isNotEqualTo(uint128_t a, uint128_t b);
-
-// arithmetic
-  __host__ __device__ static inline uint128_t add128(uint128_t x, uint128_t y);
-  __host__ __device__ static inline uint128_t add128(uint128_t x, uint64_t y);
-  __host__ __device__ static inline uint128_t mul128(uint64_t x, uint64_t y);
-  __host__ __device__ static inline uint64_t div128(uint128_t x, uint64_t v, uint64_t * r = NULL); // x / v
-  __host__ __device__ static inline uint128_t sub128(uint128_t x, uint128_t y); // x - y
-  __host__ __device__ uint64_t static inline sqrt(uint128_t & x);
-
-  __host__ uint64_t static inline clzll(uint64_t a);
-}; // class uint128_t
-*/
 __host__ __device__ bool uint128_t::isEqualTo(uint128_t a, uint128_t b)
 {
   if(a.lo == b.lo && a.hi == b.hi) return 1;
@@ -118,6 +64,14 @@ __host__ __device__ uint128_t & uint128_t::operator=(const uint128_t & n)
   hi = n.hi;
   return * this;
 }
+
+// Code taken from Hacker's Delight:
+// http://www.hackersdelight.org/HDcode/divlu.c.
+// License permits inclusion here per:
+// http://www.hackersdelight.org/permissions.htm
+//
+// Actually taken from libdivide, which took the
+// code from Hacker's Delight
 
 __host__ __device__ uint64_t uint128_t::div128(uint128_t x, uint64_t v, uint64_t * r)
 {
@@ -259,6 +213,7 @@ __host__ __device__ uint128_t uint128_t::sub128(uint128_t x, uint128_t y)
 __host__ __device__ uint64_t uint128_t::sqrt(uint128_t & x)
 {
   int32_t i = 64;
+  if(x.hi > pow(2, 58)) return 0;
 
 #ifdef __CUDA_ARCH__
   i -= __clzll(x.hi)/2;
@@ -266,20 +221,22 @@ __host__ __device__ uint64_t uint128_t::sqrt(uint128_t & x)
   i -= clzll(x.hi)/2;
 #endif
   uint128_t cmp;
-  uint64_t res = 1ull << i, err;
-  do{
+  uint64_t res = 1ull << i, err = 1, err_last = 0;
+  while(err != err_last){
+    err_last = err;
     cmp = mul128(res,res);
     if(cmp > x){
       cmp -= x;
       err = cmp/(2 * res + err);
       res -= err;
     }
-    if(cmp < x){
+    else if(cmp < x){
       cmp = x - cmp;
       err = cmp/(2 * res + err);
       res += err;
     }
-  }while(cmp != x);
+    else break;
+  }
   return res;
 }
 

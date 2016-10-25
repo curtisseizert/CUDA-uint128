@@ -9,6 +9,10 @@ uint128_t.
 #ifndef _UINT128_T_CUDA_H
 #define _UINT128_T_CUDA_H
 
+#include <iostream>
+#include <iomanip>
+#include <cinttypes>
+
 class uint128_t{
 private:
   uint64_t lo = 0, hi = 0; // d == most significant bits
@@ -36,6 +40,13 @@ public:
 
   __host__ __device__ friend uint128_t operator-(uint128_t a, uint128_t b){return sub128(a, b);}
   __host__ __device__ friend uint64_t operator/(uint128_t x, const uint64_t & v){return div128(x, v);}
+  __host__ __device__ friend uint64_t operator%(uint128_t x, const uint64_t & v)
+  {
+    uint64_t res;
+    div128(x, v, &res);
+    return res;
+  }
+
   __host__ __device__ friend bool operator<(uint128_t a, uint128_t b){return isLessThan(a, b);}
   __host__ __device__ friend bool operator>(uint128_t a, uint128_t b){return isGreaterThan(a, b);}
   __host__ __device__ friend bool operator<=(uint128_t a, uint128_t b){return isLessThanOrEqual(a, b);}
@@ -59,7 +70,22 @@ public:
   __host__ __device__ static  uint128_t sub128(uint128_t x, uint128_t y); // x - y
   __host__ __device__ uint64_t static  sqrt(uint128_t & x);
 
+// bit operations
   __host__ uint64_t static  clzll(uint64_t a);
+
+// iostream
+  __host__ friend std::ostream & operator<<(std::ostream & out, uint128_t x)
+  {
+    if(x.hi != 0){
+      uint64_t left, right, divide = 1000000000000000000; // 10^18
+      right = x % divide;
+      left = x / divide;
+      out << left << std::setfill('0') << std::setw(18) << right;
+    }else{
+      out << x.lo;
+    }
+    return out;
+  }
 }; // class uint128_t
 
 #endif
