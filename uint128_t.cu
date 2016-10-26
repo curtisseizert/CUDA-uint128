@@ -14,6 +14,45 @@
 
 #include "uint128_t.cuh"
 
+// template <typename T>
+// __host__ __device__ uint128_t & uint128_t::operator+=(const T & b)
+// {
+//   uint128_t temp = (uint128_t) b;
+//  #ifdef __CUDA_ARCH__
+//   asm(  "add.cc.u64    %0 %2 %4;\n\t"
+//         "addc.u64      %1 %3 %5\n\t"
+//         : "=l" (lo), "=l" (hi)
+//         : "l" (lo), "l" (hi),
+//           "l" (temp.lo), "l" (temp.hi));
+//   return *this;
+// #else
+//   asm(  "add    %q2, %q0\n\t"
+//         "adc    %q3, %q1\n\t"
+//         : "+r" (lo), "+r" (hi)
+//         : "r" (temp.lo) "r" (temp.hi)
+//         : "cc");
+//   return *this;
+// #endif
+// }
+
+
+
+// template <typename T>
+// __host__ __device__ uint128_t & uint128_t::operator>>=(const T & b)
+// {
+//   lo = (lo >> b) | (hi << (int)(b - 64));
+//   (b < 64) ? hi >>= b : hi = 0;
+//   return *this;
+// }
+//
+// template <typename T>
+// __host__ __device__ uint128_t & uint128_t::operator<<=(const T & b)
+// {
+//   hi = (hi << b) | (lo << (int)(b - 64));
+//   (b < 64) ? lo <<= b : lo = 0;
+//   return *this;
+// }
+
 __host__ __device__ bool uint128_t::isEqualTo(uint128_t a, uint128_t b)
 {
   if(a.lo == b.lo && a.hi == b.hi) return 1;
@@ -58,11 +97,32 @@ __host__ __device__ bool uint128_t::isLessThanOrEqual(uint128_t a, uint128_t b)
   else return 0;
 }
 
-__host__ __device__ uint128_t & uint128_t::operator=(const uint128_t & n)
+__host__ __device__ uint128_t uint128_t::bitwiseOr(uint128_t a, uint128_t b)
 {
-  lo = n.lo;
-  hi = n.hi;
-  return * this;
+  a.lo |= b.lo;
+  a.hi |= b.hi;
+  return a;
+}
+
+__host__ __device__ uint128_t uint128_t::bitwiseAnd(uint128_t a, uint128_t b)
+{
+  a.lo &= b.lo;
+  a.hi &= b.hi;
+  return a;
+}
+
+__host__ __device__ uint128_t uint128_t::bitwiseXor(uint128_t a, uint128_t b)
+{
+  a.lo ^= b.lo;
+  a.hi ^= b.hi;
+  return a;
+}
+
+__host__ __device__ uint128_t uint128_t::bitwiseNot(uint128_t a)
+{
+  a.lo = ~a.lo;
+  a.hi = ~a.hi;
+  return a;
 }
 
 // Code taken from Hacker's Delight:
@@ -88,11 +148,7 @@ __host__ __device__ uint64_t uint128_t::div128(uint128_t x, uint64_t v, uint64_t
     return  (uint64_t) -1;
   }
 
-#ifdef __CUDA_ARCH__
-  s = __clzll(v);
-#else
   s = clzll(v);
-#endif
 
   if(s > 0){
     v = v << s;
@@ -134,45 +190,44 @@ again2:
   return q1*b + q0;
 }
 
-
 __host__ __device__ uint128_t uint128_t::add128(uint128_t x, uint64_t y)
 {
-  uint128_t res;
 #ifdef __CUDA_ARCH__
+  uint128_t res;
   asm(  "add.cc.u64    %0 %2 %4\n\t"
         "addc.u64      %1 %3 0\n\t"
         : "=l" (res.lo) "=l" (res.hi)
         : "l" (x.lo) "l" (x.hi)
           "l" (y));
-#else
-  asm(  "add    %3, %0\n\t"
-        "adc    %5, %1\n\t"
-        : "=r" (res.lo), "=r" (res.hi)
-        : "%0" (x.lo), "%1" (x.hi),
-          "r" (y), "r" (0ull)
-        :  "cc");
-#endif
   return res;
+#else
+  asm(  "add    %q2, %q0\n\t"
+        "adc    $0, %q1\n\t"
+        : "+r" (x.lo), "+r" (x.hi)
+        : "r" (y)
+        : "cc");
+  return x;
+#endif
 }
 
 __host__ __device__ uint128_t uint128_t::add128(uint128_t x, uint128_t y)
 {
-   uint128_t res;
  #ifdef __CUDA_ARCH__
-   asm( "add.cc.u64    %0 %2 %4;\n\t"
+  uint128_t res;
+  asm(  "add.cc.u64    %0 %2 %4;\n\t"
         "addc.u64      %1 %3 %5\n\t"
         : "=l" (res.lo), "=l" (res.hi)
         : "l" (x.lo), "l" (x.hi),
           "l" (y.lo), "l" (y.hi));
+  return res;
 #else
-    asm("add    %3, %0\n\t"
-        "adc    %5, %1\n\t"
-        : "=r" (res.lo), "=r" (res.hi)
-        : "%0" (x.lo), "%1" (x.hi),
-          "r" (y.lo), "r" (y.hi)
-        :  "cc");
+  asm(  "add    %q2, %q0\n\t"
+        "adc    %q3, %q1\n\t"
+        : "+r" (x.lo), "+r" (x.hi)
+        : "r" (y.lo) "r" (y.hi)
+        : "cc");
+  return x;
 #endif
-    return res;
 }
 
 __host__ __device__ uint128_t uint128_t::mul128(uint64_t x, uint64_t y)
@@ -192,13 +247,6 @@ __host__ __device__ uint128_t uint128_t::mul128(uint64_t x, uint64_t y)
   return res;
 }
 
-__host__ inline uint64_t uint128_t::clzll(uint64_t x)
-{
-  uint64_t res;
-  asm("lzcnt %1, %0" : "=l" (res) : "l" (x));
-  return res;
-}
-
 __host__ __device__ uint128_t uint128_t::sub128(uint128_t x, uint128_t y)
 {
   uint128_t res;
@@ -210,7 +258,7 @@ __host__ __device__ uint128_t uint128_t::sub128(uint128_t x, uint128_t y)
   return res;
 }
 
-__host__ __device__ uint64_t uint128_t::sqrt(uint128_t & x)
+__host__ __device__ uint64_t uint128_t::sqrt(const uint128_t & x) // not defined above 2^122
 {
   int32_t i = 64;
   if(x.hi > pow(2, 58)) return 0;
@@ -237,6 +285,56 @@ __host__ __device__ uint64_t uint128_t::sqrt(uint128_t & x)
     }
     else break;
   }
+  return res;
+}
+
+__host__ __device__ uint64_t uint128_t::cbrt(const uint128_t & x) // not defined above 2^96, also does not give
+                                                                  // floor cube root but rather rounds to the nearest
+                                                                  // whole number
+{
+  uint128_t cmp;
+  uint64_t res, res2, err=1, err0=0, i;
+  if(x.hi > pow(2, 32)) return 0;
+
+  i = 128 - clzll(x.hi);
+  cmp = x;
+  cmp >>= (2 * i / 3);
+  res = cmp.lo;
+
+  while(err0 != err){
+    err0 = err;
+    res2 = res * res;
+    cmp = mul128(res2, res);
+    if(cmp > x){
+      cmp -= x;
+      err = cmp / (4 * res);
+      err /= res;
+      res -= err;
+      res -= 1;
+    }else if(cmp < x){
+      cmp = x - cmp;
+      err = cmp / (4 * res);
+      err /= res;
+      res += err;
+      res += 1;
+    }else break;
+    if(err <= 1) break;
+#ifndef __CUDA_ARCH__
+    std::cout << "\t" << x << "\t" << res << "\t" << err << "\t" << cmp << std::endl;
+#endif
+  }
+
+  return res;
+}
+
+__host__ __device__ inline uint64_t uint128_t::clzll(uint64_t x)
+{
+  uint64_t res;
+#ifdef __CUDA_ARCH__
+  res = __clzll(x);
+#else
+  asm("lzcnt %1, %0" : "=l" (res) : "l" (x));
+#endif
   return res;
 }
 
