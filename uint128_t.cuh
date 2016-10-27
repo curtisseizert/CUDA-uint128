@@ -1,8 +1,6 @@
 /*
 
-This is the header file to include in headers that require declaration of
-uint128_t.
-
+  This header file contains definitions for inline functions and templates
 
 */
 
@@ -12,6 +10,12 @@ uint128_t.
 #include <iostream>
 #include <iomanip>
 #include <cinttypes>
+#include <cuda.h>
+#include <math.h>
+
+#ifdef __CUDA_ARCH__
+#include <math_functions.h>
+#endif
 
 class uint128_t{
 private:
@@ -56,9 +60,6 @@ public:
     return *this;
   #endif
   }
-
-  template <uint64_t> __host__ __device__ uint128_t & operator+=(const uint64_t & b);
-  template <uint32_t> __host__ __device__ uint128_t & operator+=(const uint32_t & b);
 
   template <typename T>
   __host__ __device__ inline uint128_t & operator-=(const T & b)
@@ -136,33 +137,287 @@ public:
   __host__ __device__ friend uint128_t operator~(uint128_t a){return bitwiseNot(a);}
 
 // comparisons
-  __host__ __device__ static  bool isLessThan(uint128_t a, uint128_t b);
-  __host__ __device__ static  bool isLessThanOrEqual(uint128_t a, uint128_t b);
-  __host__ __device__ static  bool isGreaterThan(uint128_t a, uint128_t b);
-  __host__ __device__ static  bool isGreaterThanOrEqual(uint128_t a, uint128_t b);
-  __host__ __device__ static  bool isEqualTo(uint128_t a, uint128_t b);
-  __host__ __device__ static  bool isNotEqualTo(uint128_t a, uint128_t b);
+  __host__ __device__ static  bool isLessThan(uint128_t a, uint128_t b)
+  {
+    if(a.hi < b.hi) return 1;
+    if(a.hi > b.hi) return 0;
+    if(a.lo < b.lo) return 1;
+    else return 0;
+  }
+
+  __host__ __device__ static  bool isLessThanOrEqual(uint128_t a, uint128_t b)
+  {
+    if(a.hi < b.hi) return 1;
+    if(a.hi > b.hi) return 0;
+    if(a.lo <= b.lo) return 1;
+    else return 0;
+  }
+
+  __host__ __device__ static  bool isGreaterThan(uint128_t a, uint128_t b)
+  {
+    if(a.hi < b.hi) return 0;
+    if(a.hi > b.hi) return 1;
+    if(a.lo <= b.lo) return 0;
+    else return 1;
+  }
+
+  __host__ __device__ static  bool isGreaterThanOrEqual(uint128_t a, uint128_t b)
+  {
+    if(a.hi < b.hi) return 0;
+    if(a.hi > b.hi) return 1;
+    if(a.lo < b.lo) return 0;
+    else return 1;
+  }
+
+  __host__ __device__ static  bool isEqualTo(uint128_t a, uint128_t b)
+  {
+    if(a.lo == b.lo && a.hi == b.hi) return 1;
+    else return 0;
+  }
+
+  __host__ __device__ static  bool isNotEqualTo(uint128_t a, uint128_t b)
+  {
+    if(a.lo != b.lo || a.hi != b.hi) return 1;
+    else return 0;
+  }
+
 
 // bitwise arithmetic
-  __host__ __device__ static  uint128_t bitwiseOr(uint128_t a, uint128_t b);
-  __host__ __device__ static  uint128_t bitwiseAnd(uint128_t a, uint128_t b);
-  __host__ __device__ static  uint128_t bitwiseXor(uint128_t a, uint128_t b);
-  __host__ __device__ static  uint128_t bitwiseNot(uint128_t a);
+  __host__ __device__ static  uint128_t bitwiseOr(uint128_t a, uint128_t b)
+  {
+    a.lo |= b.lo;
+    a.hi |= b.hi;
+    return a;
+  }
+
+  __host__ __device__ static  uint128_t bitwiseAnd(uint128_t a, uint128_t b)
+  {
+    a.lo &= b.lo;
+    a.hi &= b.hi;
+    return a;
+  }
+
+  __host__ __device__ static  uint128_t bitwiseXor(uint128_t a, uint128_t b)
+  {
+    a.lo ^= b.lo;
+    a.hi ^= b.hi;
+    return a;
+  }
+
+  __host__ __device__ static  uint128_t bitwiseNot(uint128_t a)
+  {
+    a.lo = ~a.lo;
+    a.hi = ~a.hi;
+    return a;
+  }
 
 // arithmetic
-  __host__ __device__ static  uint128_t add128(uint128_t x, uint128_t y);
-  __host__ __device__ static  uint128_t add128(uint128_t x, uint64_t y);
-  __host__ __device__ static   uint128_t mul128(uint64_t x, uint64_t y);
-  __host__ __device__ static   uint64_t div128(uint128_t x, uint64_t v, uint64_t * r = NULL); // x / v
-  __host__ __device__ static  uint128_t sub128(uint128_t x, uint128_t y); // x - y
-  __host__ __device__ static  uint64_t sqrt(const uint128_t & x);
-  __host__ __device__ static  uint64_t cbrt(const uint128_t & x);
+  __host__ __device__ static inline uint128_t add128(uint128_t x, uint128_t y)
+  {
+   #ifdef __CUDA_ARCH__
+    uint128_t res;
+    asm(  "add.cc.u64    %0 %2 %4;\n\t"
+          "addc.u64      %1 %3 %5\n\t"
+          : "=l" (res.lo), "=l" (res.hi)
+          : "l" (x.lo), "l" (x.hi),
+            "l" (y.lo), "l" (y.hi));
+    return res;
+  #else
+    asm(  "add    %q2, %q0\n\t"
+          "adc    %q3, %q1\n\t"
+          : "+r" (x.lo), "+r" (x.hi)
+          : "r" (y.lo), "r" (y.hi)
+          : "cc");
+    return x;
+  #endif
+  }
+
+  __host__ __device__ static inline uint128_t add128(uint128_t x, uint64_t y)
+  {
+  #ifdef __CUDA_ARCH__
+    uint128_t res;
+    asm(  "add.cc.u64    %0 %2 %4\n\t"
+          "addc.u64      %1 %3 0\n\t"
+          : "=l" (res.lo) "=l" (res.hi)
+          : "l" (x.lo) "l" (x.hi)
+            "l" (y));
+    return res;
+  #else
+    asm(  "add    %q2, %q0\n\t"
+          "adc    $0, %q1\n\t"
+          : "+r" (x.lo), "+r" (x.hi)
+          : "r" (y)
+          : "cc");
+    return x;
+  #endif
+  }
+
+  __host__ __device__ static inline uint128_t mul128(uint64_t x, uint64_t y)
+  {
+    uint128_t res;
+  #ifdef __CUDA_ARCH__
+    asm(  "mul.lo.u64    %0 %2 %3\n\t"
+          "mul.hi.u64    %1 %2 %3\n\t"
+          : "=l" (res.lo) "=l" (res.hi)
+          : "l" (x)
+            "l" (y));
+  #else
+    asm ("mulq %3\n\t"
+     : "=a" (res.lo), "=d" (res.hi)
+     : "%0" (x), "rm" (y));
+  #endif
+    return res;
+  }
+
+  __host__ __device__ static inline uint64_t div128(uint128_t x, uint64_t v, uint64_t * r = NULL) // x / v
+  {
+    const uint64_t b = 1ull << 32;
+    uint64_t  un1, un0,
+              vn1, vn0,
+              q1, q0,
+              un64, un21, un10,
+              rhat;
+    int s;
+
+    if(x.hi >= v){
+      if( r != NULL) *r = (uint64_t) -1;
+      return  (uint64_t) -1;
+    }
+
+    s = clzll(v);
+
+    if(s > 0){
+      v = v << s;
+      un64 = (x.hi << s) | ((x.lo >> (64 - s)) & (-s >> 31));
+      un10 = x.lo << s;
+    }else{
+      un64 = x.lo | x.hi;
+      un10 = x.lo;
+    }
+
+    vn1 = v >> 32;
+    vn0 = v & 0xffffffff;
+
+    un1 = un10 >> 32;
+    un0 = un10 & 0xffffffff;
+
+    q1 = un64/vn1;
+    rhat = un64 - q1*vn1;
+
+  again1:
+    if (q1 >= b || q1*vn0 > b*rhat + un1){
+      q1 -= 1;
+      rhat = rhat + vn1;
+      if(rhat < b) goto again1;
+     }
+
+     un21 = un64*b + un1 - q1*v;
+
+     q0 = un21/vn1;
+     rhat = un21 - q0*vn1;
+  again2:
+    if(q0 >= b || q0 * vn0 > b*rhat + un0){
+      q0 = q0 - 1;
+      rhat = rhat + vn1;
+      if(rhat < b) goto again2;
+    }
+
+    if(r != NULL) *r = (un21*b + un0 - q0*v) >> s;
+    return q1*b + q0;
+  }
+
+  __host__ __device__ static inline uint128_t sub128(uint128_t x, uint128_t y) // x - y
+  {
+    uint128_t res;
+
+    res.lo = x.lo - y.lo;
+    res.hi = x.hi - y.hi;
+    if(x.lo < y.lo) res.hi--;
+
+    return res;
+  }
+
+  __host__ __device__ static  uint64_t sqrt(const uint128_t & x)
+  {
+    int32_t i = 64;
+    if(x.hi > pow(2, 58)) return 0;
+
+  #ifdef __CUDA_ARCH__
+    i -= __clzll(x.hi)/2;
+  #else
+    i -= clzll(x.hi)/2;
+  #endif
+    uint128_t cmp;
+    uint64_t res = 1ull << i, err = 1, err_last = 0;
+    while(err != err_last){
+      err_last = err;
+      cmp = mul128(res,res);
+      if(cmp > x){
+        cmp -= x;
+        err = cmp/(2 * res + err);
+        res -= err;
+      }
+      else if(cmp < x){
+        cmp = x - cmp;
+        err = cmp/(2 * res + err);
+        res += err;
+      }
+      else break;
+    }
+    return res;
+  }
+
+  // __host__ __device__ static  uint64_t cbrt(const uint128_t & x)
+  // {
+  //   uint128_t cmp;
+  //   uint64_t res, res2, err=1, err0=0, i;
+  //   if(x.hi > pow(2, 32)) return 0;
+  //
+  //   i = 128 - clzll(x.hi);
+  //   cmp = x;
+  //   cmp >>= (2 * i / 3);
+  //   res = cmp.lo;
+  //
+  //   while(err0 != err){
+  //     err0 = err;
+  //     res2 = res * res;
+  //     cmp = mul128(res2, res);
+  //     if(cmp > x){
+  //       cmp -= x;
+  //       err = cmp / (4 * res);
+  //       err /= res;
+  //       res -= err;
+  //       res -= 1;
+  //     }else if(cmp < x){
+  //       cmp = x - cmp;
+  //       err = cmp / (4 * res);
+  //       err /= res;
+  //       res += err;
+  //       res += 1;
+  //     }else break;
+  //     if(err <= 1) break;
+  // #ifndef __CUDA_ARCH__
+  //     std::cout << "\t" << x << "\t" << res << "\t" << err << "\t" << cmp << std::endl;
+  // #endif
+  //   }
+  //
+  //   return res;
+  // }
 
 // bit operations
-  __host__ __device__ uint64_t static clzll(uint64_t a);
+  __host__ __device__ static inline int64_t clzll(uint64_t x)
+  {
+    uint64_t res;
+  #ifdef __CUDA_ARCH__
+    res = __clzll(x);
+  #else
+    asm("lzcnt %1, %0" : "=l" (res) : "l" (x));
+  #endif
+    return res;
+  }
 
 // iostream
-  __host__ friend std::ostream & operator<<(std::ostream & out, uint128_t x)
+  __host__ friend inline std::ostream & operator<<(std::ostream & out, uint128_t x)
   {
     if(x.hi != 0){
       uint64_t left, right, divide = 1000000000000000000; // 10^18
