@@ -12,6 +12,7 @@
 #include <cinttypes>
 #include <cuda.h>
 #include <math.h>
+#include <string>
 
 #ifdef __CUDA_ARCH__
 #include <math_functions.h>
@@ -262,9 +263,28 @@ public:
           : "l" (x)
             "l" (y));
   #else
-    asm ("mulq %3\n\t"
-     : "=a" (res.lo), "=d" (res.hi)
-     : "%0" (x), "rm" (y));
+    asm( "mulq %3\n\t"
+         : "=a" (res.lo), "=d" (res.hi)
+         : "%0" (x), "rm" (y));
+  #endif
+    return res;
+  }
+
+  __host__ __device__ static inline uint128_t mul128(uint128_t x, uint64_t y)
+  {
+    uint128_t res;
+  #ifdef __CUDA_ARCH__
+    asm(  "mul.lo.u64     %0  %2  %4\n\t"
+          "mul.hi.u64     %1  %2  %4\n\t"
+          "mad.lo.u64     %1  %3  %4  %1\n\t"
+          : "=l" (res.lo) "=l" (res.hi)
+          : "l" (x.lo) "l" (x.hi)
+            "l" (y));
+  #else
+    asm( "mulq %3\n\t"
+         : "=a" (res.lo), "=d" (res.hi)
+         : "%0" (x.lo), "rm" (y));
+    res.hi += x.hi * y;
   #endif
     return res;
   }
@@ -413,6 +433,18 @@ public:
   #else
     asm("lzcnt %1, %0" : "=l" (res) : "l" (x));
   #endif
+    return res;
+  }
+
+// for input
+
+  __host__ static inline uint128_t stou128_t(std::string s)
+  {
+    uint128_t res = 0;
+    for(std::string::iterator iter = s.begin(); iter != s.end() && (int) *iter >= 48; iter++){
+      res = mul128(res, 10);
+      res += (uint16_t) *iter - 48;
+    }
     return res;
   }
 
