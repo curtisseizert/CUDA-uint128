@@ -27,7 +27,7 @@ public:
   template<typename T>
   __host__ __device__ uint128_t(const T & a){this->lo = a;}
 
-  __host__ __device__ uint64_t u128tou64(uint128_t x){return x.lo;}
+  __host__ __device__ static inline uint64_t u128tou64(uint128_t x){return x.lo;}
 
   __host__ __device__ uint128_t & operator=(const uint128_t & n)
   {
