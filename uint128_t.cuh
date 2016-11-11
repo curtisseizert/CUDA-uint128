@@ -27,6 +27,8 @@ public:
   template<typename T>
   __host__ __device__ uint128_t(const T & a){this->lo = a;}
 
+  __host__ __device__ uint64_t u128tou64(uint128_t x){return x.lo;}
+
   __host__ __device__ uint128_t & operator=(const uint128_t & n)
   {
     lo = n.lo;
@@ -362,11 +364,11 @@ public:
     int32_t i = 64;
     if(x.hi > pow(2, 58)) return 0;
 
-  #ifdef __CUDA_ARCH__
-    i -= __clzll(x.hi)/2;
-  #else
+  // #ifdef __CUDA_ARCH__
+  //   i -= __clzll(x.hi)/2;
+  // #else
     i -= clzll(x.hi)/2;
-  #endif
+  // #endif
     uint128_t cmp;
     uint64_t res = 1ull << i, err = 1, err_last = 0;
     while(err != err_last){
