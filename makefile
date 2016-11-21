@@ -20,7 +20,7 @@ WIGNORE = -Wno-return-stack-address
 NVCC_FLAGS = -ccbin $(LEGACY_CC_PATH) -std=c++11 -arch=$(GPU_ARCH) -code=$(GPU_CODE)
 TEST = test
 SRC = test128.cu
-INCLUDE = uint128_t.cuh
+INCLUDE = cuda_uint128.h
 
 $(TEST): $(SRC) $(INCLUDE)
 	@$(NVCC) $(NVCC_FLAGS) $< -o $@

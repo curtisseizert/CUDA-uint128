@@ -1,6 +1,14 @@
 /*
 
   This header file contains definitions for inline functions and templates
+  defining the uint128_t class for both device and host functions.  All of the
+  usual operators are overloaded, including (for host) ostream insert.  Strings
+  can also be converted to uint128_t (again, host only) in order to provide a
+  way to get uint128_t variables from command line arguments.  If you think of
+  something better than what is here, or something doesn't work, please let me
+  know!!
+
+  cuda_uint128.h (c) Curtis Seizert 2016
 
 */
 
@@ -23,6 +31,12 @@ private:
   uint64_t lo = 0, hi = 0; // d == most significant bits
 public:
   __host__ __device__ uint128_t(){};
+
+
+                    ////////////////
+                    //  Operators //
+                    ////////////////
+
 
   template<typename T>
   __host__ __device__ uint128_t(const T & a){this->lo = a;}
@@ -139,7 +153,12 @@ public:
 
   __host__ __device__ friend uint128_t operator~(uint128_t a){return bitwiseNot(a);}
 
-// comparisons
+
+                      ////////////////////
+                      //    Comparisons
+                      ////////////////////
+
+
   __host__ __device__ static  bool isLessThan(uint128_t a, uint128_t b)
   {
     if(a.hi < b.hi) return 1;
@@ -194,7 +213,35 @@ public:
     return a > b ? a : b;
   }
 
-// bitwise arithmetic
+
+                      //////////////////////
+                      //   bit operations
+                      //////////////////////
+
+/// This relies on a non-archaic host x86 architecture for the lzcnt instruction
+/// and counts leading zeros for 64 bit unsigned integers.  It is used internally
+/// in a few of the functions defined below.
+  __host__ __device__ static inline uint64_t clzll(uint64_t x)
+  {
+    uint64_t res;
+  #ifdef __CUDA_ARCH__
+    res = __clzll(x);
+  #else
+    asm("lzcnt %1, %0" : "=l" (res) : "l" (x));
+  #endif
+    return res;
+  }
+
+/// This just makes it more convenient to count leading zeros for uint128_t
+  __host__ __device__ static inline uint64_t clz128(uint128_t x)
+  {
+    uint64_t res;
+
+    res = x.hi != 0 ? clzll(x.hi) : 64 + clzll(x.lo);
+
+    return res;
+  }
+
   __host__ __device__ static  uint128_t bitwiseOr(uint128_t a, uint128_t b)
   {
     a.lo |= b.lo;
@@ -223,7 +270,10 @@ public:
     return a;
   }
 
-// arithmetic
+                          //////////////////
+                          //   arithmetic
+                          //////////////////
+
   __host__ __device__ static inline uint128_t add128(uint128_t x, uint128_t y)
   {
    #ifdef __CUDA_ARCH__
@@ -302,6 +352,10 @@ public:
     return res;
   }
 
+// taken from libdivide's adaptation of this implementation origininally in
+// Hacker's Delight: http://www.hackersdelight.org/hdcodetxt/divDouble.c.txt
+// License permits inclusion here per:
+// http://www.hackersdelight.org/permissions.htm
   __host__ __device__ static inline uint64_t div128(uint128_t x, uint64_t v, uint64_t * r = NULL) // x / v
   {
     const uint64_t b = 1ull << 32;
@@ -370,6 +424,10 @@ public:
     return res;
   }
 
+///
+/// This integer square root operation needs some love.  Because it is garbage.
+///
+
   __host__ __device__ static  uint64_t sqrt(const uint128_t & x)
   {
     int32_t i = 64;
@@ -437,21 +495,13 @@ public:
   //   return res;
   // }
 
-// bit operations
-  __host__ __device__ static inline int64_t clzll(uint64_t x)
-  {
-    uint64_t res;
-  #ifdef __CUDA_ARCH__
-    res = __clzll(x);
-  #else
-    asm("lzcnt %1, %0" : "=l" (res) : "l" (x));
-  #endif
-    return res;
-  }
 
-// for input
 
-  __host__ static inline uint128_t stou128_t(std::string s)
+                            /////////////////
+                            //  typecasting
+                            /////////////////
+
+  __host__ static inline uint128_t stou128(std::string s)
   {
     uint128_t res = 0;
     for(std::string::iterator iter = s.begin(); iter != s.end() && (int) *iter >= 48; iter++){
@@ -461,7 +511,20 @@ public:
     return res;
   }
 
-// iostream
+  __host__ __device__ static inline double u128toDouble(uint128_t x)
+  {
+    double dbl;
+
+
+
+    return dbl;
+  }
+
+                              //////////////
+                              //  iostream
+                              //////////////
+
+
   __host__ friend inline std::ostream & operator<<(std::ostream & out, uint128_t x)
   {
     if(x.hi != 0){

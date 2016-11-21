@@ -3,7 +3,7 @@
 #include <math.h>
 #include <string>
 
-#include "uint128_t.cuh"
+#include "cuda_uint128.h"
 
 uint128_t calc(char * argv);
 
