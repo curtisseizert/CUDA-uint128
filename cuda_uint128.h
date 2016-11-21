@@ -511,13 +511,80 @@ public:
     return res;
   }
 
-  __host__ __device__ static inline double u128toDouble(uint128_t x)
+  __host__ __device__ static inline double u128_to_double(uint128_t x)
   {
     double dbl;
+    uint64_t r = clzll(x.hi);
+    x >>= (64 -r);
 
+    #ifdef __CUDA_ARCH__
+    dbl = __ull2double_rd(x.lo);
+    #else
+    dbl = (double) x.lo;
+    #endif
 
+    dbl *= (1ull << (64-r));
 
     return dbl;
+  }
+
+  __host__ __device__ static inline double u128_to_float(uint128_t x)
+  {
+    float flt;
+    uint64_t r = clzll(x.hi);
+    x >>= (64 -r);
+
+    #ifdef __CUDA_ARCH__
+    flt = __ull2float_rd(x.lo);
+    #else
+    flt = (float) x.lo;
+    #endif
+
+    flt *= (1ull << (64-r));
+
+    return flt;
+  }
+
+  __host__ __device__ static inline uint128_t double_to_u128(double dbl)
+  {
+    uint128_t x;
+    if(dbl < 1 || dbl > 1e39) return 0;
+    else
+
+    #ifdef __CUDA_ARCH__
+    uint32_t shft = __double2uint_rd(log2(dbl));
+    uint64_t divisor = 1ull << shft;
+    dbl /= divisor;
+    x.lo = __double2ull_rd(dbl);
+    #else
+    uint32_t shft = (uint32_t) log2(dbl);
+    uint64_t divisor = 1ull << shft;
+    dbl /= divisor;
+    x.lo = (uint64_t) dbl;
+    #endif
+    x <<= shft;
+    return x;
+  }
+
+  __host__ __device__ static inline uint128_t float_to_u128(float flt)
+  {
+    uint128_t x;
+    if(flt < 1 || flt > 1e39) return 0;
+    else
+
+    #ifdef __CUDA_ARCH__
+    uint32_t shft = __double2uint_rd(log2(flt));
+    uint64_t divisor = 1ull << shft;
+    flt /= divisor;
+    x.lo = __double2ull_rd(flt);
+    #else
+    uint32_t shft = (uint32_t) log2(flt);
+    uint64_t divisor = 1ull << shft;
+    flt /= divisor;
+    x.lo = (uint64_t) flt;
+    #endif
+    x <<= shft;
+    return x;
   }
 
                               //////////////
