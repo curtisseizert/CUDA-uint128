@@ -184,6 +184,15 @@ public:
     else return 0;
   }
 
+  __host__ __device__ static uint128_t min(uint128_t a, uint128_t b)
+  {
+    return a < b ? a : b;
+  }
+
+  __host__ __device__ static uint128_t max(uint128_t a, uint128_t b)
+  {
+    return a > b ? a : b;
+  }
 
 // bitwise arithmetic
   __host__ __device__ static  uint128_t bitwiseOr(uint128_t a, uint128_t b)
@@ -259,11 +268,13 @@ public:
   {
     uint128_t res;
   #ifdef __CUDA_ARCH__
-    asm(  "mul.lo.u64    %0 %2 %3\n\t"
-          "mul.hi.u64    %1 %2 %3\n\t"
-          : "=l" (res.lo) "=l" (res.hi)
-          : "l" (x)
-            "l" (y));
+    // asm(  "mul.lo.u64    %0 %2 %3\n\t"
+    //       "mul.hi.u64    %1 %2 %3\n\t"
+    //       : "=l" (res.lo) "=l" (res.hi)
+    //       : "l" (x)
+    //         "l" (y));
+    res.lo = x * y;
+    res.hi = __mul64hi(x, y);
   #else
     asm( "mulq %3\n\t"
          : "=a" (res.lo), "=d" (res.hi)
