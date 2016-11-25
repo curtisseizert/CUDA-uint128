@@ -27,9 +27,9 @@
 #endif
 
 class uint128_t{
-private:
-  uint64_t lo = 0, hi = 0; // d == most significant bits
 public:
+  uint64_t lo = 0, hi = 0; // d == most significant bits
+
   __host__ __device__ uint128_t(){};
 
 
@@ -427,7 +427,7 @@ public:
 ///
 /// This integer square root operation needs some love.  Because it is garbage.
 ///
-
+/*
   __host__ __device__ static  uint64_t sqrt(const uint128_t & x)
   {
     int32_t i = 64;
@@ -456,6 +456,31 @@ public:
       else break;
     }
     return res;
+  }
+*/
+  __host__ __device__ static uint64_t sqrt(const uint128_t & x)
+  {
+    uint64_t res0 = 0, res1 = 0;
+
+    #ifdef __CUDA_ARCH__
+    res0 = sqrtf(u128_to_float(x));
+    while(res0 != res1){
+      res1 = (res0 + x/res0) >> 1;
+      res0 = (res1 + x/res1) >> 1;
+      res1 = (res0 + x/res0) >> 1;
+      res0 = (res1 + x/res1) >> 1;
+    }
+    #else
+    res0 = std::sqrt(u128_to_float(x));
+    while(res0 != res1){
+      res1 = (res0 + x/res0) >> 1;
+      res0 = (res1 + x/res1) >> 1;
+      res1 = (res0 + x/res0) >> 1;
+      res0 = (res1 + x/res1) >> 1;
+    }
+    #endif
+
+    return res0;
   }
 
   // __host__ __device__ static  uint64_t cbrt(const uint128_t & x)
@@ -514,11 +539,16 @@ public:
   __host__ __device__ static inline double u128_to_double(uint128_t x)
   {
     double dbl;
+    #ifdef __CUDA_ARCH__
+    if(x.hi == 0) return __ull2double_rd(x.lo);
+    #else
+    if(x.hi == 0) return (double) x.lo;
+    #endif
     uint64_t r = clzll(x.hi);
-    x >>= (64 -r);
+    x <<= r;
 
     #ifdef __CUDA_ARCH__
-    dbl = __ull2double_rd(x.lo);
+    dbl = __ull2double_rd(x.hi);
     #else
     dbl = (double) x.lo;
     #endif
@@ -531,16 +561,22 @@ public:
   __host__ __device__ static inline double u128_to_float(uint128_t x)
   {
     float flt;
+    #ifdef __CUDA_ARCH__
+    if(x.hi == 0) return __ull2float_rd(x.lo);
+    #else
+    if(x.hi == 0) return (float) x.lo;
+    #endif
     uint64_t r = clzll(x.hi);
-    x >>= (64 -r);
+    x <<= r;
 
     #ifdef __CUDA_ARCH__
-    flt = __ull2float_rd(x.lo);
+    flt = __ull2float_rd(x.hi);
     #else
-    flt = (float) x.lo;
+    flt = (float) x.hi;
     #endif
 
     flt *= (1ull << (64-r));
+    flt *= 2;
 
     return flt;
   }
@@ -549,42 +585,46 @@ public:
   {
     uint128_t x;
     if(dbl < 1 || dbl > 1e39) return 0;
-    else
+    else{
 
-    #ifdef __CUDA_ARCH__
-    uint32_t shft = __double2uint_rd(log2(dbl));
-    uint64_t divisor = 1ull << shft;
-    dbl /= divisor;
-    x.lo = __double2ull_rd(dbl);
-    #else
-    uint32_t shft = (uint32_t) log2(dbl);
-    uint64_t divisor = 1ull << shft;
-    dbl /= divisor;
-    x.lo = (uint64_t) dbl;
-    #endif
-    x <<= shft;
-    return x;
+  #ifdef __CUDA_ARCH__
+      uint32_t shft = __double2uint_rd(log2(dbl));
+      uint64_t divisor = 1ull << shft;
+      dbl /= divisor;
+      x.lo = __double2ull_rd(dbl);
+      x <<= shft;
+  #else
+      uint32_t shft = (uint32_t) log2(dbl);
+      uint64_t divisor = 1ull << shft;
+      dbl /= divisor;
+      x.lo = (uint64_t) dbl;
+      x <<= shft;
+  #endif
+      return x;
+    }
   }
 
   __host__ __device__ static inline uint128_t float_to_u128(float flt)
   {
     uint128_t x;
     if(flt < 1 || flt > 1e39) return 0;
-    else
+    else{
 
-    #ifdef __CUDA_ARCH__
-    uint32_t shft = __double2uint_rd(log2(flt));
-    uint64_t divisor = 1ull << shft;
-    flt /= divisor;
-    x.lo = __double2ull_rd(flt);
-    #else
-    uint32_t shft = (uint32_t) log2(flt);
-    uint64_t divisor = 1ull << shft;
-    flt /= divisor;
-    x.lo = (uint64_t) flt;
-    #endif
-    x <<= shft;
+  #ifdef __CUDA_ARCH__
+      uint32_t shft = __double2uint_rd(log2(flt));
+      uint64_t divisor = 1ull << shft;
+      flt /= divisor;
+      x.lo = __double2ull_rd(flt);
+      x <<= shft;
+  #else
+      uint32_t shft = (uint32_t) log2(flt);
+      uint64_t divisor = 1ull << shft;
+      flt /= divisor;
+      x.lo = (uint64_t) flt;
+      x <<= shft;
+  #endif
     return x;
+    }
   }
 
                               //////////////

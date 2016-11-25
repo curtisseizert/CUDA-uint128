@@ -21,7 +21,9 @@ NVCC_FLAGS = -ccbin $(LEGACY_CC_PATH) -std=c++11 -arch=$(GPU_ARCH) -code=$(GPU_C
 TEST = test
 SRC = test128.cu
 INCLUDE = cuda_uint128.h
+INCLUDE_PATHS = -I /home/curtis/CUDASieve/include
+CUDASIEVE_LIB = /home/curtis/CUDASieve/libcudasieve.a
 
 $(TEST): $(SRC) $(INCLUDE)
-	@$(NVCC) $(NVCC_FLAGS) $< -o $@
+	@$(NVCC) $(NVCC_FLAGS) $(INCLUDE_PATHS) $(CUDASIEVE_LIB) $< -o $@
 	@echo "     CUDA     " $@
