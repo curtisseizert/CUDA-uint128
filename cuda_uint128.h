@@ -413,6 +413,17 @@ public:
     return q1*b + q0;
   }
 
+  __host__ __device__ static inline uint128_t div128to128(uint128_t x, uint64_t v, uint64_t * r = NULL)
+  {
+    uint128_t res;
+
+    res.hi = x.hi/v;
+    x.hi %= v;
+    res.lo = div128(x, v, r);
+
+    return res;
+  }
+
   __host__ __device__ static inline uint128_t sub128(uint128_t x, uint128_t y) // x - y
   {
     uint128_t res;

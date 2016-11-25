@@ -19,11 +19,16 @@ WIGNORE = -Wno-return-stack-address
 # ptxas-options=-dlcm=cg (vs. default of ca) is about a 2% performance gain
 NVCC_FLAGS = -ccbin $(LEGACY_CC_PATH) -std=c++11 -arch=$(GPU_ARCH) -code=$(GPU_CODE)
 TEST = test
+TEST_CPU = testcpu
 SRC = test128.cu
+SRC_CPU = test128cpu.cu
 INCLUDE = cuda_uint128.h
 INCLUDE_PATHS = -I /home/curtis/CUDASieve/include
-CUDASIEVE_LIB = /home/curtis/CUDASieve/libcudasieve.a
+CUDASIEVE_LIB = /home/curtis/Projects/CUDASieve/libcudasieve.a
 
 $(TEST): $(SRC) $(INCLUDE)
 	@$(NVCC) $(NVCC_FLAGS) $(INCLUDE_PATHS) $(CUDASIEVE_LIB) $< -o $@
 	@echo "     CUDA     " $@
+
+$(TEST_CPU) : $(SRC_CPU) $(INCLUDE)
+	@$(NVCC) $(NVCC_FLAGS) $(INCLUDE_PATHS) -Xcompiler=-fopenmp $< -o $@
