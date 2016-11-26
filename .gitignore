@@ -6,3 +6,4 @@
 *.fatbin
 divide.cu
 test
+testcpu

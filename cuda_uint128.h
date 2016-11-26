@@ -37,9 +37,12 @@ public:
                     //  Operators //
                     ////////////////
 
-
   template<typename T>
-  __host__ __device__ uint128_t(const T & a){this->lo = a;}
+  __host__ __device__ uint128_t(const T & a)
+  {
+    this->lo = (uint64_t) a & (uint64_t)-1;
+    this->hi = 0;
+  }
 
   __host__ __device__ static inline uint64_t u128tou64(uint128_t x){return x.lo;}
 
@@ -62,8 +65,8 @@ public:
   {
     uint128_t temp = (uint128_t) b;
    #ifdef __CUDA_ARCH__
-    asm(  "add.cc.u64    %0 %2 %4;\n\t"
-          "addc.u64      %1 %3 %5\n\t"
+    asm(  "add.cc.u64    %0, %2, %4;\n\t"
+          "addc.u64      %1, %3, %5;\n\t"
           : "=l" (lo), "=l" (hi)
           : "l" (lo), "l" (hi),
             "l" (temp.lo), "l" (temp.hi));
@@ -278,8 +281,8 @@ public:
   {
    #ifdef __CUDA_ARCH__
     uint128_t res;
-    asm(  "add.cc.u64    %0 %2 %4;\n\t"
-          "addc.u64      %1 %3 %5\n\t"
+    asm(  "add.cc.u64    %0, %2, %4;\n\t"
+          "addc.u64      %1, %3, %5;\n\t"
           : "=l" (res.lo), "=l" (res.hi)
           : "l" (x.lo), "l" (x.hi),
             "l" (y.lo), "l" (y.hi));
@@ -298,8 +301,8 @@ public:
   {
   #ifdef __CUDA_ARCH__
     uint128_t res;
-    asm(  "add.cc.u64    %0 %2 %4\n\t"
-          "addc.u64      %1 %3 0\n\t"
+    asm(  "add.cc.u64    %0, %2, %4;\n\t"
+          "addc.u64      %1, %3, 0;\n\t"
           : "=l" (res.lo) "=l" (res.hi)
           : "l" (x.lo) "l" (x.hi)
             "l" (y));
@@ -318,11 +321,6 @@ public:
   {
     uint128_t res;
   #ifdef __CUDA_ARCH__
-    // asm(  "mul.lo.u64    %0 %2 %3\n\t"
-    //       "mul.hi.u64    %1 %2 %3\n\t"
-    //       : "=l" (res.lo) "=l" (res.hi)
-    //       : "l" (x)
-    //         "l" (y));
     res.lo = x * y;
     res.hi = __mul64hi(x, y);
   #else
@@ -337,12 +335,9 @@ public:
   {
     uint128_t res;
   #ifdef __CUDA_ARCH__
-    asm(  "mul.lo.u64     %0  %2  %4\n\t"
-          "mul.hi.u64     %1  %2  %4\n\t"
-          "mad.lo.u64     %1  %3  %4  %1\n\t"
-          : "=l" (res.lo) "=l" (res.hi)
-          : "l" (x.lo) "l" (x.hi)
-            "l" (y));
+    res.lo = x.lo * y;
+    res.hi = __mul64hi(x.lo, y);
+    res.hi += x.hi * y;
   #else
     asm( "mulq %3\n\t"
          : "=a" (res.lo), "=d" (res.hi)

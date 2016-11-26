@@ -13,6 +13,9 @@ __global__
 void atimesbequalsc(uint64_t * a, uint64_t * b, uint128_t * c);
 __global__
 void squarerootc(uint128_t * c, uint64_t * a);
+__global__
+void divide_and_check(uint128_t x);
+
 
 int main(int argc, char * argv[])
 {
@@ -21,37 +24,15 @@ int main(int argc, char * argv[])
     x = calc(argv[1]);
   }
 
-  uint64_t * d_a, *d_b;
-  uint128_t * d_c;
-  size_t len_a, len_b;
-
-  d_a = CudaSieve::getDevicePrimes(pow(2,55)+pow(2,32), pow(2,55) + pow(2,33), len_a, 0);
-  d_b = CudaSieve::getDevicePrimes(pow(2,60), pow(2,60) + pow(2,32), len_b, 0);
-
-  cudaMalloc(&d_c, len_a * sizeof(uint128_t));
-  std::cout << "Number of elements : " << len_a << std::endl;
-
   KernelTime timer;
 
   timer.start();
 
-  atimesbequalsc<<<len_a/256, 256>>>(d_a, d_b, d_c);
+  divide_and_check<<<1, 256>>>(x);
 
+  cudaDeviceSynchronize();
   timer.stop();
   timer.displayTime();
-
-  KernelTime timer2;
-
-  timer2.start();
-
-  squarerootc<<<390625, 256>>>(d_c, d_a);
-
-  timer2.stop();
-  timer2.displayTime();
-
-  std::cout << x << " " << uint128_t::u128_to_double(x) << std::endl;
-
-  uint128_t::sqrt(x);
 
   return 0;
 }
@@ -70,6 +51,21 @@ void squarerootc(uint128_t * c, uint64_t * a)
   a[tidx] = uint128_t::sqrt(c[tidx]);
   if(uint128_t::mul128(a[tidx], a[tidx]) > c[tidx] || uint128_t::mul128((a[tidx] + 1), (a[tidx] + 1)) <= c[tidx])
     printf("%llu  %f  %llu\n", a[tidx], uint128_t::u128_to_float(c[tidx]), c[tidx].hi);
+}
+
+__global__
+void divide_and_check(uint128_t x)
+{
+  uint64_t tidx = 2 + threadIdx.x + blockIdx.x * blockDim.x;
+  __shared__ uint64_t r[256];
+  __shared__ uint128_t z[256];
+
+  uint128_t y = uint128_t::div128to128(x, tidx, &r[threadIdx.x]);
+  z[threadIdx.x] = uint128_t::mul128(y, tidx);
+  z[threadIdx.x] = uint128_t::add128(z, r[threadIdx.x]);
+
+  if(z[threadIdx.x].lo != x.lo) printf("%llu\t%llu\n", x.lo, z[threadIdx.x].lo);
+  __syncthreads();
 }
 
 uint128_t calc(char * argv) // for getting values bigger than the 32 bits that system() will return;
