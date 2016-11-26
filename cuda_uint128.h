@@ -29,8 +29,10 @@
 class uint128_t{
 public:
   uint64_t lo = 0, hi = 0; // d == most significant bits
-
-  __host__ __device__ uint128_t(){};
+#ifdef __CUDA_ARCH__
+  __host__ __device__
+#endif
+  uint128_t(){};
 
 
                     ////////////////
@@ -38,15 +40,24 @@ public:
                     ////////////////
 
   template<typename T>
-  __host__ __device__ uint128_t(const T & a)
+#ifdef __CUDA_ARCH__
+  __host__ __device__
+#endif
+  uint128_t(const T & a)
   {
     this->lo = (uint64_t) a & (uint64_t)-1;
     this->hi = 0;
   }
 
-  __host__ __device__ static inline uint64_t u128tou64(uint128_t x){return x.lo;}
+#ifdef __CUDA_ARCH__
+  __host__ __device__
+#endif
+ static inline uint64_t u128tou64(uint128_t x){return x.lo;}
 
-  __host__ __device__ uint128_t & operator=(const uint128_t & n)
+ #ifdef __CUDA_ARCH__
+   __host__ __device__
+ #endif
+   uint128_t & operator=(const uint128_t & n)
   {
     lo = n.lo;
     hi = n.hi;
@@ -55,13 +66,22 @@ public:
 
 // operator overloading
   template <typename T>
-  __host__ __device__ uint128_t & operator=(const T n){hi = 0; lo = n; return * this;}
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    uint128_t & operator=(const T n){hi = 0; lo = n; return * this;}
 
   template <typename T>
-  __host__ __device__ friend uint128_t operator+(uint128_t a, const T & b){return add128(a, b);}
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend uint128_t operator+(uint128_t a, const T & b){return add128(a, b);}
 
   template <typename T>
-  __host__ __device__ inline uint128_t & operator+=(const T & b)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    inline uint128_t & operator+=(const T & b)
   {
     uint128_t temp = (uint128_t) b;
    #ifdef __CUDA_ARCH__
@@ -82,7 +102,10 @@ public:
   }
 
   template <typename T>
-  __host__ __device__ inline uint128_t & operator-=(const T & b)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    inline uint128_t & operator-=(const T & b)
   {
     uint128_t temp = (uint128_t)b;
     if(lo < temp.lo) hi--;
@@ -91,7 +114,10 @@ public:
   }
 
   template <typename T>
-  __host__ __device__ inline uint128_t & operator>>=(const T & b)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    inline uint128_t & operator>>=(const T & b)
   {
     lo = (lo >> b) | (hi << (int)(b - 64));
     (b < 64) ? hi >>= b : hi = 0;
@@ -99,7 +125,10 @@ public:
   }
 
   template <typename T>
-  __host__ __device__ inline uint128_t & operator<<=(const T & b)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    inline uint128_t & operator<<=(const T & b)
   {
     hi = (hi << b) | (lo << (int)(b - 64));
     (b < 64) ? lo <<= b : lo = 0;
@@ -107,54 +136,114 @@ public:
   }
 
   template <typename T>
-  __host__ __device__ friend inline uint128_t operator>>(uint128_t a, const T & b){a >>= b; return a;}
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend inline uint128_t operator>>(uint128_t a, const T & b){a >>= b; return a;}
 
   template <typename T>
-  __host__ __device__ friend inline uint128_t operator<<(uint128_t a, const T & b){a <<= b; return a;}
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend inline uint128_t operator<<(uint128_t a, const T & b){a <<= b; return a;}
 
-  __host__ __device__ inline uint128_t & operator--(){return *this -=1;}
-  __host__ __device__ inline uint128_t & operator++(){return *this +=1;}
+    #ifdef __CUDA_ARCH__
+      __host__ __device__
+    #endif
+      inline uint128_t & operator--(){return *this -=1;}
+      #ifdef __CUDA_ARCH__
+        __host__ __device__
+      #endif
+        inline uint128_t & operator++(){return *this +=1;}
 
   template <typename T>
-  __host__ __device__ friend uint128_t operator-(uint128_t a, const T & b){return sub128(a, (uint128_t)b);}
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend uint128_t operator-(uint128_t a, const T & b){return sub128(a, (uint128_t)b);}
 
   template <typename T>
-  __host__ __device__ friend T operator/(uint128_t x, const T & v){return div128(x, (uint64_t)v);}
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend T operator/(uint128_t x, const T & v){return div128to64(x, (uint64_t)v);}
 
   template <typename T>
-  __host__ __device__ friend T operator%(uint128_t x, const T & v)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend T operator%(uint128_t x, const T & v)
   {
     uint64_t res;
-    div128(x, v, &res);
+    div128to64(x, v, &res);
     return (T)res;
   }
 
-  __host__ __device__ friend bool operator<(uint128_t a, uint128_t b){return isLessThan(a, b);}
-  __host__ __device__ friend bool operator>(uint128_t a, uint128_t b){return isGreaterThan(a, b);}
-  __host__ __device__ friend bool operator<=(uint128_t a, uint128_t b){return isLessThanOrEqual(a, b);}
-  __host__ __device__ friend bool operator>=(uint128_t a, uint128_t b){return isGreaterThanOrEqual(a, b);}
-  __host__ __device__ friend bool operator==(uint128_t a, uint128_t b){return isEqualTo(a, b);}
-  __host__ __device__ friend bool operator!=(uint128_t a, uint128_t b){return isNotEqualTo(a, b);}
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend bool operator<(uint128_t a, uint128_t b){return isLessThan(a, b);}
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend bool operator>(uint128_t a, uint128_t b){return isGreaterThan(a, b);}
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend bool operator<=(uint128_t a, uint128_t b){return isLessThanOrEqual(a, b);}
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend bool operator>=(uint128_t a, uint128_t b){return isGreaterThanOrEqual(a, b);}
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend bool operator==(uint128_t a, uint128_t b){return isEqualTo(a, b);}
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+  friend bool operator!=(uint128_t a, uint128_t b){return isNotEqualTo(a, b);}
 
   template <typename T>
-  __host__ __device__ friend uint128_t operator|(uint128_t a, const T & b){return bitwiseOr(a, (uint128_t)b);}
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend uint128_t operator|(uint128_t a, const T & b){return bitwiseOr(a, (uint128_t)b);}
 
   template <typename T>
-  __host__ __device__ uint128_t & operator|=(const T & b){*this = *this | b; return *this;}
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    uint128_t & operator|=(const T & b){*this = *this | b; return *this;}
 
   template <typename T>
-  __host__ __device__ friend uint128_t operator&(uint128_t a, const T & b){return bitwiseAnd(a, (uint128_t)b);}
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend uint128_t operator&(uint128_t a, const T & b){return bitwiseAnd(a, (uint128_t)b);}
 
   template <typename T>
-  __host__ __device__ uint128_t & operator&=(const T & b){*this = *this & b; return *this;}
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    uint128_t & operator&=(const T & b){*this = *this & b; return *this;}
 
   template <typename T>
-  __host__ __device__ friend uint128_t operator^(uint128_t a, const T & b){return bitwiseXor(a, (uint128_t)b);}
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend uint128_t operator^(uint128_t a, const T & b){return bitwiseXor(a, (uint128_t)b);}
 
   template <typename T>
-  __host__ __device__ uint128_t & operator^=(const T & b){*this = *this ^ b; return *this;}
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    uint128_t & operator^=(const T & b){*this = *this ^ b; return *this;}
 
-  __host__ __device__ friend uint128_t operator~(uint128_t a){return bitwiseNot(a);}
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend uint128_t operator~(uint128_t a){return bitwiseNot(a);}
 
 
                       ////////////////////
@@ -162,7 +251,10 @@ public:
                       ////////////////////
 
 
-  __host__ __device__ static  bool isLessThan(uint128_t a, uint128_t b)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    static  bool isLessThan(uint128_t a, uint128_t b)
   {
     if(a.hi < b.hi) return 1;
     if(a.hi > b.hi) return 0;
@@ -170,7 +262,10 @@ public:
     else return 0;
   }
 
-  __host__ __device__ static  bool isLessThanOrEqual(uint128_t a, uint128_t b)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    static  bool isLessThanOrEqual(uint128_t a, uint128_t b)
   {
     if(a.hi < b.hi) return 1;
     if(a.hi > b.hi) return 0;
@@ -178,7 +273,10 @@ public:
     else return 0;
   }
 
-  __host__ __device__ static  bool isGreaterThan(uint128_t a, uint128_t b)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    static  bool isGreaterThan(uint128_t a, uint128_t b)
   {
     if(a.hi < b.hi) return 0;
     if(a.hi > b.hi) return 1;
@@ -186,7 +284,10 @@ public:
     else return 1;
   }
 
-  __host__ __device__ static  bool isGreaterThanOrEqual(uint128_t a, uint128_t b)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    static  bool isGreaterThanOrEqual(uint128_t a, uint128_t b)
   {
     if(a.hi < b.hi) return 0;
     if(a.hi > b.hi) return 1;
@@ -194,24 +295,36 @@ public:
     else return 1;
   }
 
-  __host__ __device__ static  bool isEqualTo(uint128_t a, uint128_t b)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    static  bool isEqualTo(uint128_t a, uint128_t b)
   {
     if(a.lo == b.lo && a.hi == b.hi) return 1;
     else return 0;
   }
 
-  __host__ __device__ static  bool isNotEqualTo(uint128_t a, uint128_t b)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    static  bool isNotEqualTo(uint128_t a, uint128_t b)
   {
     if(a.lo != b.lo || a.hi != b.hi) return 1;
     else return 0;
   }
 
-  __host__ __device__ static uint128_t min(uint128_t a, uint128_t b)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend uint128_t min(uint128_t a, uint128_t b)
   {
     return a < b ? a : b;
   }
 
-  __host__ __device__ static uint128_t max(uint128_t a, uint128_t b)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend uint128_t max(uint128_t a, uint128_t b)
   {
     return a > b ? a : b;
   }
@@ -224,7 +337,10 @@ public:
 /// This relies on a non-archaic host x86 architecture for the lzcnt instruction
 /// and counts leading zeros for 64 bit unsigned integers.  It is used internally
 /// in a few of the functions defined below.
-  __host__ __device__ static inline uint64_t clzll(uint64_t x)
+#ifdef __CUDA_ARCH__
+  __host__ __device__
+#endif
+  static inline uint64_t clz64(uint64_t x)
   {
     uint64_t res;
   #ifdef __CUDA_ARCH__
@@ -236,37 +352,52 @@ public:
   }
 
 /// This just makes it more convenient to count leading zeros for uint128_t
-  __host__ __device__ static inline uint64_t clz128(uint128_t x)
+#ifdef __CUDA_ARCH__
+  __host__ __device__
+#endif
+  friend inline uint64_t clz128(uint128_t x)
   {
     uint64_t res;
 
-    res = x.hi != 0 ? clzll(x.hi) : 64 + clzll(x.lo);
+    res = x.hi != 0 ? clz64(x.hi) : 64 + clz64(x.lo);
 
     return res;
   }
 
-  __host__ __device__ static  uint128_t bitwiseOr(uint128_t a, uint128_t b)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    static  uint128_t bitwiseOr(uint128_t a, uint128_t b)
   {
     a.lo |= b.lo;
     a.hi |= b.hi;
     return a;
   }
 
-  __host__ __device__ static  uint128_t bitwiseAnd(uint128_t a, uint128_t b)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    static  uint128_t bitwiseAnd(uint128_t a, uint128_t b)
   {
     a.lo &= b.lo;
     a.hi &= b.hi;
     return a;
   }
 
-  __host__ __device__ static  uint128_t bitwiseXor(uint128_t a, uint128_t b)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    static  uint128_t bitwiseXor(uint128_t a, uint128_t b)
   {
     a.lo ^= b.lo;
     a.hi ^= b.hi;
     return a;
   }
 
-  __host__ __device__ static  uint128_t bitwiseNot(uint128_t a)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    static  uint128_t bitwiseNot(uint128_t a)
   {
     a.lo = ~a.lo;
     a.hi = ~a.hi;
@@ -277,7 +408,10 @@ public:
                           //   arithmetic
                           //////////////////
 
-  __host__ __device__ static inline uint128_t add128(uint128_t x, uint128_t y)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    static inline uint128_t add128(uint128_t x, uint128_t y)
   {
    #ifdef __CUDA_ARCH__
     uint128_t res;
@@ -297,7 +431,10 @@ public:
   #endif
   }
 
-  __host__ __device__ static inline uint128_t add128(uint128_t x, uint64_t y)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    static inline uint128_t add128(uint128_t x, uint64_t y)
   {
   #ifdef __CUDA_ARCH__
     uint128_t res;
@@ -317,7 +454,10 @@ public:
   #endif
   }
 
-  __host__ __device__ static inline uint128_t mul128(uint64_t x, uint64_t y)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    static inline uint128_t mul128(uint64_t x, uint64_t y)
   {
     uint128_t res;
   #ifdef __CUDA_ARCH__
@@ -331,7 +471,15 @@ public:
     return res;
   }
 
-  __host__ __device__ static inline uint128_t mul128(uint128_t x, uint64_t y)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend inline uint128_t mul128(uint64_t x, uint64_t y);
+
+    #ifdef __CUDA_ARCH__
+      __host__ __device__
+    #endif
+      static inline uint128_t mul128(uint128_t x, uint64_t y)
   {
     uint128_t res;
   #ifdef __CUDA_ARCH__
@@ -347,11 +495,19 @@ public:
     return res;
   }
 
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend inline uint128_t mul128(uint128_t x, uint64_t y);
+
 // taken from libdivide's adaptation of this implementation origininally in
 // Hacker's Delight: http://www.hackersdelight.org/hdcodetxt/divDouble.c.txt
 // License permits inclusion here per:
 // http://www.hackersdelight.org/permissions.htm
-  __host__ __device__ static inline uint64_t div128(uint128_t x, uint64_t v, uint64_t * r = NULL) // x / v
+#ifdef __CUDA_ARCH__
+  __host__ __device__
+#endif
+  static inline uint64_t div128to64(uint128_t x, uint64_t v, uint64_t * r = NULL) // x / v
   {
     const uint64_t b = 1ull << 32;
     uint64_t  un1, un0,
@@ -366,7 +522,7 @@ public:
       return  (uint64_t) -1;
     }
 
-    s = clzll(v);
+    s = clz64(v);
 
     if(s > 0){
       v = v << s;
@@ -408,18 +564,34 @@ public:
     return q1*b + q0;
   }
 
-  __host__ __device__ static inline uint128_t div128to128(uint128_t x, uint64_t v, uint64_t * r = NULL)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend inline uint64_t div128to64(uint128_t x, uint64_t v, uint64_t * r = NULL);
+
+    #ifdef __CUDA_ARCH__
+      __host__ __device__
+    #endif
+      static inline uint128_t div128to128(uint128_t x, uint64_t v, uint64_t * r = NULL)
   {
     uint128_t res;
 
     res.hi = x.hi/v;
     x.hi %= v;
-    res.lo = div128(x, v, r);
+    res.lo = div128to64(x, v, r);
 
     return res;
   }
 
-  __host__ __device__ static inline uint128_t sub128(uint128_t x, uint128_t y) // x - y
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend inline uint128_t div128to128(uint128_t x, uint64_t v, uint64_t * r = NULL);
+
+    #ifdef __CUDA_ARCH__
+      __host__ __device__
+    #endif
+      static inline uint128_t sub128(uint128_t x, uint128_t y) // x - y
   {
     uint128_t res;
 
@@ -430,41 +602,15 @@ public:
     return res;
   }
 
-///
-/// This integer square root operation needs some love.  Because it is garbage.
-///
-/*
-  __host__ __device__ static  uint64_t sqrt(const uint128_t & x)
-  {
-    int32_t i = 64;
-    if(x.hi > pow(2, 58)) return 0;
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend inline uint128_t sub128(uint128_t x, uint128_t y);
 
-  // #ifdef __CUDA_ARCH__
-  //   i -= __clzll(x.hi)/2;
-  // #else
-    i -= clzll(x.hi)/2;
-  // #endif
-    uint128_t cmp;
-    uint64_t res = 1ull << i, err = 1, err_last = 0;
-    while(err != err_last){
-      err_last = err;
-      cmp = mul128(res,res);
-      if(cmp > x){
-        cmp -= x;
-        err = cmp/(2 * res + err);
-        res -= err;
-      }
-      else if(cmp < x){
-        cmp = x - cmp;
-        err = cmp/(2 * res + err);
-        res += err;
-      }
-      else break;
-    }
-    return res;
-  }
-*/
-  __host__ __device__ static uint64_t sqrt(const uint128_t & x)
+    #ifdef __CUDA_ARCH__
+      __host__ __device__
+    #endif
+      friend uint64_t _isqrt(const uint128_t & x)
   {
     uint64_t res0 = 0, res1 = 0;
 
@@ -489,50 +635,14 @@ public:
     return res0;
   }
 
-  // __host__ __device__ static  uint64_t cbrt(const uint128_t & x)
-  // {
-  //   uint128_t cmp;
-  //   uint64_t res, res2, err=1, err0=0, i;
-  //   if(x.hi > pow(2, 32)) return 0;
-  //
-  //   i = 128 - clzll(x.hi);
-  //   cmp = x;
-  //   cmp >>= (2 * i / 3);
-  //   res = cmp.lo;
-  //
-  //   while(err0 != err){
-  //     err0 = err;
-  //     res2 = res * res;
-  //     cmp = mul128(res2, res);
-  //     if(cmp > x){
-  //       cmp -= x;
-  //       err = cmp / (4 * res);
-  //       err /= res;
-  //       res -= err;
-  //       res -= 1;
-  //     }else if(cmp < x){
-  //       cmp = x - cmp;
-  //       err = cmp / (4 * res);
-  //       err /= res;
-  //       res += err;
-  //       res += 1;
-  //     }else break;
-  //     if(err <= 1) break;
-  // #ifndef __CUDA_ARCH__
-  //     std::cout << "\t" << x << "\t" << res << "\t" << err << "\t" << cmp << std::endl;
-  // #endif
-  //   }
-  //
-  //   return res;
-  // }
-
-
 
                             /////////////////
                             //  typecasting
                             /////////////////
-
-  __host__ static inline uint128_t stou128(std::string s)
+#ifdef __CUDA_ARCH__
+  __host__
+#endif
+ static inline uint128_t string_to_u128(std::string s)
   {
     uint128_t res = 0;
     for(std::string::iterator iter = s.begin(); iter != s.end() && (int) *iter >= 48; iter++){
@@ -542,7 +652,10 @@ public:
     return res;
   }
 
-  __host__ __device__ static inline double u128_to_double(uint128_t x)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend inline double u128_to_double(uint128_t x)
   {
     double dbl;
     #ifdef __CUDA_ARCH__
@@ -550,7 +663,7 @@ public:
     #else
     if(x.hi == 0) return (double) x.lo;
     #endif
-    uint64_t r = clzll(x.hi);
+    uint64_t r = clz64(x.hi);
     x <<= r;
 
     #ifdef __CUDA_ARCH__
@@ -564,7 +677,10 @@ public:
     return dbl;
   }
 
-  __host__ __device__ static inline double u128_to_float(uint128_t x)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend inline float u128_to_float(uint128_t x)
   {
     float flt;
     #ifdef __CUDA_ARCH__
@@ -572,7 +688,7 @@ public:
     #else
     if(x.hi == 0) return (float) x.lo;
     #endif
-    uint64_t r = clzll(x.hi);
+    uint64_t r = clz64(x.hi);
     x <<= r;
 
     #ifdef __CUDA_ARCH__
@@ -587,7 +703,10 @@ public:
     return flt;
   }
 
-  __host__ __device__ static inline uint128_t double_to_u128(double dbl)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    static inline uint128_t double_to_u128(double dbl)
   {
     uint128_t x;
     if(dbl < 1 || dbl > 1e39) return 0;
@@ -610,7 +729,10 @@ public:
     }
   }
 
-  __host__ __device__ static inline uint128_t float_to_u128(float flt)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    static inline uint128_t float_to_u128(float flt)
   {
     uint128_t x;
     if(flt < 1 || flt > 1e39) return 0;
@@ -652,5 +774,42 @@ public:
   }
 
 }; // class uint128_t
+
+#ifdef __CUDA_ARCH__
+  __host__ __device__
+#endif
+  inline uint128_t mul128(uint64_t x, uint64_t y)
+{
+  return uint128_t::mul128(x, y);
+}
+
+#ifdef __CUDA_ARCH__
+  __host__ __device__
+#endif
+  inline uint128_t mul128(uint128_t x, uint64_t y)
+{
+  return uint128_t::mul128(x, y);
+}
+#ifdef __CUDA_ARCH__
+  __host__ __device__
+#endif
+  inline uint64_t div128to64(uint128_t x, uint64_t v, uint64_t * r)
+{
+  return uint128_t::div128to64(x, v, r);
+}
+#ifdef __CUDA_ARCH__
+  __host__ __device__
+#endif
+  inline uint128_t div128to128(uint128_t x, uint64_t v, uint64_t * r)
+{
+  return uint128_t::div128to128(x, v, r);
+}
+#ifdef __CUDA_ARCH__
+  __host__ __device__
+#endif
+  inline uint128_t sub128(uint128_t x, uint128_t y) // x - y
+{
+  return x - y;
+}
 
 #endif
