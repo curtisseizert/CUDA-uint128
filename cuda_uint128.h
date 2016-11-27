@@ -744,19 +744,6 @@ template <typename T>
 #ifdef __CUDA_ARCH__
   __host__
 #endif
- // friend inline std::ostream & operator<<(std::ostream & out, uint128_t x)
- //  {
- //    if(x.hi != 0){
- //      uint64_t left, right, divide = 1000000000000000000; // 10^18
- //      right = x % divide;
- //      left = x / divide;
- //      out << left << std::setfill('0') << std::setw(18) << right;
- //    }else{
- //      out << x.lo;
- //    }
- //    return out;
- //  }
-
   friend inline std::ostream & operator<<(std::ostream & out, uint128_t x)
   {
     std::vector<uint16_t> rout;
