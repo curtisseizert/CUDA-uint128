@@ -592,24 +592,77 @@ template <typename T>
   #ifdef __CUDA_ARCH__
     __host__ __device__
   #endif
-    friend uint64_t _isqrt(const uint128_t & x)
+  friend inline uint64_t _isqrt(uint64_t x)
   {
-    uint64_t res0 = 0, res1 = 0;
+    uint64_t res0 = 0;
+  #ifdef __CUDA_ARCH__
+    res0 = sqrtf(x);
+  #else
+    res0 = sqrt(x);
+    #pragma unroll
+    for(uint16_t i = 0; i < 8; i++)
+      res0 = (res0 + x/res0) >> 1;
+  #endif
+    return res0;
+  }
+
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend inline uint64_t _isqrt(const uint128_t & x)
+  {
+    uint64_t res0 = 0;
 
     #ifdef __CUDA_ARCH__
     res0 = sqrtf(u128_to_float(x));
     #else
     res0 = std::sqrt(u128_to_float(x));
     #endif
-    res1 = (res0 + x/res0) >> 1;
-    res0 = (res1 + x/res1) >> 1;
-    res1 = (res0 + x/res0) >> 1;
-    res0 = (res1 + x/res1) >> 1;
-    res1 = (res0 + x/res0) >> 1;
-    res0 = (res1 + x/res1) >> 1;
-    res1 = (res0 + x/res0) >> 1;
-    res0 = (res1 + x/res1) >> 1;
+    #pragma unroll
+    for(uint16_t i = 0; i < 8; i++)
+      res0 = (res0 + x/res0) >> 1;
 
+
+    return res0;
+  }
+
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend inline uint64_t _icbrt(const uint128_t & x)
+  {
+    uint64_t res0 = 0;
+
+  #ifdef __CUDA_ARCH__
+    res0 = cbrtf(u128_to_float(x));
+  #else
+    res0 = std::cbrt(u128_to_float(x));
+  #endif
+    #pragma unroll
+    for(uint16_t i = 0; i < 47; i++) // there needs to be an odd number of iterations
+                                     // for the case of numbers of the form x^2 - 1
+                                     // where this will not converge
+      res0 = (res0 + div128to128(x,res0)/res0) >> 1;
+    return res0;
+  }
+
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend uint64_t _iqrt(const uint128_t & x)
+  {
+    uint64_t res0 = 0;
+
+  #ifdef __CUDA_ARCH__
+    res0 = cbrtf(u128_to_float(x));
+  #else
+    res0 = (u128_to_float(x));
+  #endif
+    #pragma unroll
+    for(uint16_t i = 0; i < 47; i++) // there needs to be an odd number of iterations
+                                     // for the case of numbers of the form x^2 - 1
+                                     // where this will not converge
+      res0 = (res0 + div128to128(x,res0)/res0) >> 1;
     return res0;
   }
 
