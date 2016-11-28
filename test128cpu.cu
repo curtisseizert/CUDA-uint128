@@ -30,7 +30,7 @@ int main(int argc, char ** argv)
   // z = mul128(v, v);
   // std::cout << z << " " << v << std::endl;
 
-  std::cout << x << std::endl;
+  std::cout << _isqrt(x) << std::endl;
 
   return 0;
 

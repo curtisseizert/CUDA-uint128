@@ -589,30 +589,26 @@ template <typename T>
   #endif
     friend inline uint128_t sub128(uint128_t x, uint128_t y);
 
-    #ifdef __CUDA_ARCH__
-      __host__ __device__
-    #endif
-      friend uint64_t _isqrt(const uint128_t & x)
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
+    friend uint64_t _isqrt(const uint128_t & x)
   {
     uint64_t res0 = 0, res1 = 0;
 
     #ifdef __CUDA_ARCH__
     res0 = sqrtf(u128_to_float(x));
-    while(res0 != res1){
-      res1 = (res0 + x/res0) >> 1;
-      res0 = (res1 + x/res1) >> 1;
-      res1 = (res0 + x/res0) >> 1;
-      res0 = (res1 + x/res1) >> 1;
-    }
     #else
     res0 = std::sqrt(u128_to_float(x));
-    while(res0 != res1){
-      res1 = (res0 + x/res0) >> 1;
-      res0 = (res1 + x/res1) >> 1;
-      res1 = (res0 + x/res0) >> 1;
-      res0 = (res1 + x/res1) >> 1;
-    }
     #endif
+    res1 = (res0 + x/res0) >> 1;
+    res0 = (res1 + x/res1) >> 1;
+    res1 = (res0 + x/res0) >> 1;
+    res0 = (res1 + x/res1) >> 1;
+    res1 = (res0 + x/res0) >> 1;
+    res0 = (res1 + x/res1) >> 1;
+    res1 = (res0 + x/res0) >> 1;
+    res0 = (res1 + x/res1) >> 1;
 
     return res0;
   }
@@ -779,7 +775,7 @@ template <typename T>
 #ifdef __CUDA_ARCH__
   __host__ __device__
 #endif
-  inline uint64_t div128to64(uint128_t x, uint64_t v, uint64_t * r)
+  inline uint64_t div128to64(uint128_t x, uint64_t v, uint64_t * r = NULL)
 {
   return uint128_t::div128to64(x, v, r);
 }
