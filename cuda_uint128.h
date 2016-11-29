@@ -606,10 +606,14 @@ template <typename T>
     return res0;
   }
 
+                      //////////////////
+                      ///    roots
+                      //////////////////
+
   #ifdef __CUDA_ARCH__
     __host__ __device__
   #endif
-    friend inline uint64_t _isqrt(const uint128_t & x)
+    static inline uint64_t _isqrt(const uint128_t & x)
   {
     uint64_t res0 = 0;
 
@@ -649,21 +653,23 @@ template <typename T>
   #ifdef __CUDA_ARCH__
     __host__ __device__
   #endif
-    friend uint64_t _iqrt(const uint128_t & x)
+  // this function is to avoid off by 1 errors from nesting integer square roots
+    friend inline uint64_t _iqrt(const uint128_t & x)
   {
-    uint64_t res0 = 0;
+    uint64_t res0 = 0, res1 = 0;
 
-  #ifdef __CUDA_ARCH__
-    res0 = cbrtf(u128_to_float(x));
-  #else
-    res0 = (u128_to_float(x));
-  #endif
-    #pragma unroll
-    for(uint16_t i = 0; i < 47; i++) // there needs to be an odd number of iterations
-                                     // for the case of numbers of the form x^2 - 1
-                                     // where this will not converge
-      res0 = (res0 + div128to128(x,res0)/res0) >> 1;
-    return res0;
+    res0 = _isqrt(_isqrt(x));
+    #ifndef __CUDA_ARCH__
+    std::cout << "\t" << res0 << std::endl;
+    #endif
+
+    res1 = (res0 + div128to128(x,res0*res0)/res0) >> 1;
+    res0 = (res1 + div128to128(x,res1*res1)/res1) >> 1;
+    #ifndef __CUDA_ARCH__
+    std::cout << res0 << " " << res1 << std::endl;
+    #endif
+
+    return res0 < res1 ? res0 : res1;
   }
 
 
@@ -865,5 +871,13 @@ template <typename T>
  {
    return uint128_t::string_to_u128(s);
  }
+
+#ifdef __CUDA_ARCH__
+ __host__ __device__
+#endif
+ inline uint64_t _isqrt(const uint128_t & x)
+{
+ return uint128_t::_isqrt(x);
+}
 
 #endif
