@@ -2,19 +2,24 @@
 #include <stdint.h>
 #include <math.h>
 #include <string>
+#include <cuda_runtime.h>
+#include <curand.h>
 
-#include <CUDASieve/cudasieve.hpp>
 #include <CUDASieve/host.hpp>
 
 #include "cuda_uint128.h"
 
 uint128_t calc(char * argv);
+uint64_t * generateUniform64(uint64_t num);
+
 __global__
 void atimesbequalsc(uint64_t * a, uint64_t * b, uint128_t * c);
 __global__
 void squarerootc(uint128_t * c, uint64_t * a);
 __global__
-void divide_and_check(uint128_t x);
+void sqrt_test(uint64_t * a, volatile uint64_t * errors);
+__global__
+void div_test(uint64_t * a, volatile uint64_t * errors);
 
 
 int main(int argc, char * argv[])
@@ -24,17 +29,40 @@ int main(int argc, char * argv[])
     x = calc(argv[1]);
   }
 
+  uint64_t * d64 = generateUniform64(1u<<26);
+  volatile uint64_t * h_errors, * d_errors;
+  cudaHostAlloc((void **)&h_errors, sizeof(uint64_t), cudaHostAllocMapped);
+  cudaHostGetDevicePointer((uint64_t **)&d_errors, (uint64_t *)h_errors, 0);
+
+  *h_errors = 0;
+
   KernelTime timer;
 
   timer.start();
 
-  divide_and_check<<<1, 256>>>(x);
+  div_test<<<65536, 256>>>(d64, d_errors);
 
   cudaDeviceSynchronize();
   timer.stop();
   timer.displayTime();
 
+  std::cout << *h_errors << " errors " << std::endl;
+
   return 0;
+}
+
+uint64_t * generateUniform64(uint64_t num)
+{
+  uint64_t * d_r;
+  curandGenerator_t gen;
+
+  cudaMalloc(&d_r, num * sizeof(uint64_t));
+
+  curandCreateGenerator(&gen, CURAND_RNG_QUASI_SOBOL64);
+  curandSetPseudoRandomGeneratorSeed(gen, 1278459ull);
+  curandGenerateLongLong(gen, (unsigned long long *)d_r, num);
+
+  return d_r;
 }
 
 __global__
@@ -54,18 +82,60 @@ void squarerootc(uint128_t * c, uint64_t * a)
 }
 
 __global__
-void divide_and_check(uint128_t x)
+void sqrt_test(uint64_t * a, volatile uint64_t * errors)
 {
-  uint64_t tidx = 2 + threadIdx.x + blockIdx.x * blockDim.x;
-  __shared__ uint64_t r[256];
-  __shared__ uint128_t z[256];
+  __shared__ uint64_t s_a[1024];
 
-  uint128_t y = uint128_t::div128to128(x, tidx, &r[threadIdx.x]);
-  z[threadIdx.x] = mul128(y, tidx);
-  z[threadIdx.x] = add128(z, r[threadIdx.x]);
-
-  if(z[threadIdx.x].lo != x.lo) printf("%llu\t%llu\n", x.lo, z[threadIdx.x].lo);
+  #pragma unroll
+  for(uint16_t i = 0; i < 4; i++){
+    s_a[threadIdx.x + i * blockDim.x] = a[threadIdx.x + i * blockDim.x + 1024*blockIdx.x];
+  }
   __syncthreads();
+
+  uint128_t x;
+  #pragma unroll
+  for(uint16_t i = 0; i < 4; i++){
+    x.lo = s_a[threadIdx.x + i * blockDim.x];
+    #pragma unroll
+    for(uint16_t i = 0; i < 1024; i++){
+      x.hi = s_a[i] >> 4;
+      uint64_t y = _isqrt(x);
+      if(mul128(y,y) > x || mul128(y + 1, y + 1) <= x){
+        atomicAdd((unsigned long long *)errors, 1ull);
+        printf("%llu %llu %llu\n", x.hi, x.lo, y);
+      }
+    }
+  }
+}
+
+__global__
+void div_test(uint64_t * a, volatile uint64_t * errors)
+{
+  __shared__ uint64_t s_a[1024];
+
+  #pragma unroll
+  for(uint16_t i = 0; i < 4; i++){
+    s_a[threadIdx.x + i * blockDim.x] = a[threadIdx.x + i * blockDim.x + 1024*blockIdx.x];
+  }
+  __syncthreads();
+
+  uint128_t x, y;
+  uint64_t v, r;
+  #pragma unroll
+  for(uint16_t i = 0; i < 4; i++){
+    x.lo = s_a[threadIdx.x + i * blockDim.x];
+    #pragma unroll
+    for(uint16_t i = 0; i < 1024; i++){
+      x.hi = s_a[i] >> 4;
+      v = s_a[(i + 1 )& 1023] >> (x.hi & 31);
+      y = div128to128(x,v,&r);
+      y = add128(mul128(y, v), r);
+      uint64_t y = _isqrt(x);
+      // if(y != x){
+      //   atomicAdd((unsigned long long *)errors, 1ull);
+      // }
+    }
+  }
 }
 
 uint128_t calc(char * argv) // for getting values bigger than the 32 bits that system() will return;

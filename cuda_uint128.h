@@ -613,9 +613,12 @@ template <typename T>
   #ifdef __CUDA_ARCH__
     __host__ __device__
   #endif
-    static inline uint64_t _isqrt(const uint128_t & x)
+    static inline uint64_t _isqrt(const uint128_t & x) // this gives errors above 2^124
   {
     uint64_t res0 = 0;
+
+    if(x == 0 || x.hi > 1ull << 60)
+      return 0;
 
     #ifdef __CUDA_ARCH__
     res0 = sqrtf(u128_to_float(x));

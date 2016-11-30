@@ -25,9 +25,10 @@ SRC_CPU = test128cpu.cu
 INCLUDE = cuda_uint128.h
 INCLUDE_PATHS = -I /home/curtis/CUDASieve/include
 CUDASIEVE_LIB = /home/curtis/CUDASieve/libcudasieve.a
+LIBS = -lcurand
 
 $(TEST): $(SRC) $(INCLUDE)
-	@$(NVCC) $(NVCC_FLAGS) $(INCLUDE_PATHS) $(CUDASIEVE_LIB) $< -o $@
+	@$(NVCC) $(NVCC_FLAGS) $(INCLUDE_PATHS) $(CUDASIEVE_LIB) $(LIBS) $< -o $@
 	@echo "     CUDA     " $@
 
 $(TEST_CPU) : $(SRC_CPU) $(INCLUDE)
