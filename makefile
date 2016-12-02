@@ -1,7 +1,7 @@
 
 
 # Location of the CUDA toolkit
-CUDA_DIR = /opt/cuda
+CUDA_DIR = /usr/local/cuda-8.0
 LEGACY_CC_PATH = /bin/g++-5
 # Compute capability of the target GPU
 GPU_ARCH = compute_30
@@ -10,7 +10,7 @@ GPU_CODE = sm_30,sm_32,sm_35,sm_37,sm_50,sm_52,sm_53,sm_60,sm_61,sm_62
 
 # Compilers to use
 NVCC = $(CUDA_DIR)/bin/nvcc
-LEGACY_CC_PATH = /bin/g++-5
+LEGACY_CC_PATH = /usr/bin/g++-5
 # Flags for the host compiler
 CCFLAGS = -O3 -std=c++11 -c
 WIGNORE = -Wno-return-stack-address

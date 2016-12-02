@@ -8,29 +8,23 @@ uint128_t calc(char * argv);
 
 int main(int argc, char ** argv)
 {
-  uint128_t x = (uint128_t) 1 << 90;
+  uint128_t x = (uint128_t) 1 << 120;
 
   if(argc == 2)
-    x = calc(argv[1]);
+    x = string_to_u128((std::string)argv[1]);
 
-  // #pragma omp parallel for
-  // for(uint64_t v = 2; v < 1u << 30; v++){
-  //   uint64_t r;
-  //   uint128_t y = uint128_t::div128to128(x, v, &r);
-  //   uint128_t z = mul128(y, v) + r;
-  //
-  //   if(z != x) std::cout << z << std::endl;
-  //
-  // }
-  //
-  // std::cout << x << " " << y << " " << r << std::endl;
-  // std::cout << z << std::endl;
-  //
-  // v = _isqrt(x - v);
-  // z = mul128(v, v);
-  // std::cout << z << " " << v << std::endl;
+  #pragma omp parallel for
+  for(uint64_t v = 2; v < 1u << 30; v++){
+    uint64_t r;
+    uint128_t y = uint128_t::div128to128(x, v, &r);
+    uint128_t z = mul128(y, v) + r;
 
-  std::cout << _iqrt(x) << std::endl;
+    if(z != x) std::cout << z << std::endl;
+  }
+
+  // std::cout << _isqrt(x) << std::endl;
+  // std::cout << _icbrt(x) << std::endl;
+  // std::cout << _iqrt(x) << std::endl;
 
   return 0;
 

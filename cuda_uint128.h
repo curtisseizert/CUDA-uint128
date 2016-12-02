@@ -30,7 +30,7 @@
 
 class uint128_t{
 public:
-  uint64_t lo = 0, hi = 0; // d == most significant bits
+  uint64_t lo, hi; // d == most significant bits
 #ifdef __CUDA_ARCH__
   __host__ __device__
 #endif
@@ -573,6 +573,15 @@ template <typename T>
   #ifdef __CUDA_ARCH__
     __host__ __device__
   #endif
+    static inline uint64_t div128to64(uint128_t x, uint128_t v, uint128_t * r = NULL)
+  {
+    if(v.hi == 0) return div128to64(x, v.lo, r.lo)
+    uint64_t res;
+  }
+
+  #ifdef __CUDA_ARCH__
+    __host__ __device__
+  #endif
     static inline uint128_t sub128(uint128_t x, uint128_t y) // x - y
   {
     uint128_t res;
@@ -629,7 +638,6 @@ template <typename T>
     for(uint16_t i = 0; i < 8; i++)
       res0 = (res0 + x/res0) >> 1;
 
-
     return res0;
   }
 
@@ -662,15 +670,8 @@ template <typename T>
     uint64_t res0 = 0, res1 = 0;
 
     res0 = _isqrt(_isqrt(x));
-    #ifndef __CUDA_ARCH__
-    std::cout << "\t" << res0 << std::endl;
-    #endif
-
     res1 = (res0 + div128to128(x,res0*res0)/res0) >> 1;
     res0 = (res1 + div128to128(x,res1*res1)/res1) >> 1;
-    #ifndef __CUDA_ARCH__
-    std::cout << res0 << " " << res1 << std::endl;
-    #endif
 
     return res0 < res1 ? res0 : res1;
   }
@@ -845,7 +846,7 @@ template <typename T>
 #ifdef __CUDA_ARCH__
   __host__ __device__
 #endif
-  inline uint128_t div128to128(uint128_t x, uint64_t v, uint64_t * r)
+  inline uint128_t div128to128(uint128_t x, uint64_t v, uint64_t * r=NULL)
 {
   return uint128_t::div128to128(x, v, r);
 }
