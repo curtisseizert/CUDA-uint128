@@ -30,7 +30,11 @@
 
 class uint128_t{
 public:
-  uint64_t lo, hi; // d == most significant bits
+#ifdef __CUDA_ARCH__ // dynamic initialization not supported in some device code
+  uint64_t lo, hi;
+#else
+  uint64_t lo = 0, hi = 0;
+#endif
 #ifdef __CUDA_ARCH__
   __host__ __device__
 #endif
@@ -569,16 +573,16 @@ template <typename T>
 
     return res;
   }
-
+/*
   #ifdef __CUDA_ARCH__
     __host__ __device__
   #endif
     static inline uint64_t div128to64(uint128_t x, uint128_t v, uint128_t * r = NULL)
   {
-    if(v.hi == 0) return div128to64(x, v.lo, r.lo)
+    if(v.hi == 0) return div128to64(x, v.lo, r->lo);
     uint64_t res;
   }
-
+*/
   #ifdef __CUDA_ARCH__
     __host__ __device__
   #endif
@@ -846,7 +850,7 @@ template <typename T>
 #ifdef __CUDA_ARCH__
   __host__ __device__
 #endif
-  inline uint128_t div128to128(uint128_t x, uint64_t v, uint64_t * r=NULL)
+  inline uint128_t div128to128(uint128_t x, uint64_t v, uint64_t * r = NULL)
 {
   return uint128_t::div128to128(x, v, r);
 }
