@@ -5,9 +5,11 @@
 #include <cuda_runtime.h>
 #include <curand.h>
 
+#include <CUDASieve/cudasieve.hpp>
 #include <CUDASieve/host.hpp>
 
 #include "cuda_uint128.h"
+#include "cuda_uint128_primitives.cuh"
 
 uint128_t calc(char * argv);
 uint64_t * generateUniform64(uint64_t num);
@@ -24,29 +26,36 @@ void div_test(uint64_t * a, volatile uint64_t * errors);
 
 int main(int argc, char * argv[])
 {
-  uint128_t x;
+  uint128_t x = 0;
   if(argc == 2){
     x = calc(argv[1]);
   }
+  size_t len;
 
-  uint64_t * d64 = generateUniform64(1u<<26);
-  volatile uint64_t * h_errors, * d_errors;
-  cudaHostAlloc((void **)&h_errors, sizeof(uint64_t), cudaHostAllocMapped);
-  cudaHostGetDevicePointer((uint64_t **)&d_errors, (uint64_t *)h_errors, 0);
+  uint64_t * d_primes = CudaSieve::getDevicePrimes(0, pow(10,9), len, 0);
 
-  *h_errors = 0;
+  x = cuda128::reduce64to128(d_primes, x.lo);
+  std::cout << x << std::endl;
 
-  KernelTime timer;
 
-  timer.start();
-
-  div_test<<<65536, 256>>>(d64, d_errors);
-
-  cudaDeviceSynchronize();
-  timer.stop();
-  timer.displayTime();
-
-  std::cout << *h_errors << " errors " << std::endl;
+  // uint64_t * d64 = generateUniform64(1u<<26);
+  // volatile uint64_t * h_errors, * d_errors;
+  // cudaHostAlloc((void **)&h_errors, sizeof(uint64_t), cudaHostAllocMapped);
+  // cudaHostGetDevicePointer((uint64_t **)&d_errors, (uint64_t *)h_errors, 0);
+  //
+  // *h_errors = 0;
+  //
+  // KernelTime timer;
+  //
+  // timer.start();
+  //
+  // div_test<<<65536, 256>>>(d64, d_errors);
+  //
+  // cudaDeviceSynchronize();
+  // timer.stop();
+  // timer.displayTime();
+  //
+  // std::cout << *h_errors << " errors " << std::endl;
 
   return 0;
 }
