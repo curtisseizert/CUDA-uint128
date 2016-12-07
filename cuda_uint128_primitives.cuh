@@ -76,8 +76,6 @@ __global__ void reduce_to_128_kernel(T * a, size_t len, uint128_t * partial_sums
     partial_sums[blockIdx.x] = s_part[0];
 }
 
-
-
 } // namespace cu128_internal
 
 using namespace cu128_internal;
@@ -109,6 +107,23 @@ inline uint128_t reduce64to128(int64_t * a, size_t len)
   cudaMalloc(&partial_sums, blocks*sizeof(uint128_t));
 
   reduce_to_128_kernel<int64_t, blockSize><<<blocks, blockSize>>>(a, len, partial_sums);
+  if(blocks > 1)
+    reduce_to_128_kernel<uint128_t, blockSize><<<1, blockSize>>>(partial_sums, blocks, partial_sums);
+
+  cudaMemcpy(&sum, partial_sums, sizeof(uint128_t), cudaMemcpyDeviceToHost);
+
+  return sum;
+}
+
+inline uint128_t reduce128to128(uint128_t * a, size_t len)
+{
+  uint128_t sum, * partial_sums;
+  const uint32_t blockSize = 256;
+  uint32_t blocks = (len >> 10) / blockSize + 1;
+
+  cudaMalloc(&partial_sums, blocks*sizeof(uint128_t));
+
+  reduce_to_128_kernel<uint128_t, blockSize><<<blocks, blockSize>>>(a, len, partial_sums);
   if(blocks > 1)
     reduce_to_128_kernel<uint128_t, blockSize><<<1, blockSize>>>(partial_sums, blocks, partial_sums);
 
