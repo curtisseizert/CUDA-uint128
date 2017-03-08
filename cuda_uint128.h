@@ -820,10 +820,14 @@ template <typename T>
   {
     std::vector<uint16_t> rout;
     uint64_t v = 10, r = 0;
-    while(x != 0){
+    if (x == 0) {
+      out << "0";
+      return out;
+    }
+    do {
       x = div128to128(x, v, &r);
       rout.push_back(r);
-    }
+    } while(x != 0);
     for(std::reverse_iterator<std::vector<uint16_t>::iterator> rit = rout.rbegin(); rit != rout.rend(); rit++){
       out << *rit;
     }
