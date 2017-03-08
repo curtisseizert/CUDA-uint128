@@ -612,7 +612,6 @@ template <typename T>
     res0 = sqrtf(x);
   #else
     res0 = sqrt(x);
-    #pragma unroll
     for(uint16_t i = 0; i < 8; i++)
       res0 = (res0 + x/res0) >> 1;
   #endif
@@ -638,7 +637,9 @@ template <typename T>
     #else
     res0 = std::sqrt(u128_to_float(x));
     #endif
+    #ifdef __CUDA_ARCH__
     #pragma unroll
+    #endif
     for(uint16_t i = 0; i < 8; i++)
       res0 = (res0 + x/res0) >> 1;
 
@@ -657,7 +658,9 @@ template <typename T>
   #else
     res0 = std::cbrt(u128_to_float(x));
   #endif
+  #ifdef __CUDA_ARCH__
     #pragma unroll
+  #endif
     for(uint16_t i = 0; i < 47; i++) // there needs to be an odd number of iterations
                                      // for the case of numbers of the form x^2 - 1
                                      // where this will not converge
