@@ -172,6 +172,12 @@ template <typename T>
 #ifdef __CUDA_ARCH__
   __host__ __device__
 #endif
+    friend uint128_t operator*(uint128_t a, const T & b){return mul128(a, (uint64_t)b);}
+
+  template <typename T>
+#ifdef __CUDA_ARCH__
+  __host__ __device__
+#endif
     friend T operator/(uint128_t x, const T & v){return div128to64(x, (uint64_t)v);}
 
   template <typename T>
