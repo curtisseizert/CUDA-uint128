@@ -28,6 +28,12 @@
 #include <math_functions.h>
 #endif
 
+#ifdef __has_builtin
+# define uint128_t_has_builtin(x) __has_builtin(x)
+#else
+# define uint128_t_has_builtin(x) 0
+#endif
+
 class uint128_t{
 public:
 #ifdef __CUDA_ARCH__ // dynamic initialization not supported in some device code
@@ -346,19 +352,20 @@ template <typename T>
                       //   bit operations
                       //////////////////////
 
-/// This relies on a non-archaic host x86 architecture for the lzcnt instruction
-/// and counts leading zeros for 64 bit unsigned integers.  It is used internally
+/// This counts leading zeros for 64 bit unsigned integers.  It is used internally
 /// in a few of the functions defined below.
 #ifdef __CUDA_ARCH__
   __host__ __device__
 #endif
-  static inline uint64_t clz64(uint64_t x)
+  static inline int clz64(uint64_t x)
   {
-    uint64_t res;
+    int res;
   #ifdef __CUDA_ARCH__
     res = __clzll(x);
+  #elif __GNUC__ || uint128_t_has_builtin(__builtin_clzll)
+    res = __builtin_clzll(x);
   #else
-    asm("lzcnt %1, %0" : "=l" (res) : "l" (x));
+    asm("bsr %1, %0; xor $0x3f, %0" : "=r" (res) : "m" (x));
   #endif
     return res;
   }
