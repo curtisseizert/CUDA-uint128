@@ -365,7 +365,7 @@ template <typename T>
   #elif __GNUC__ || uint128_t_has_builtin(__builtin_clzll)
     res = __builtin_clzll(x);
   #else
-    asm("bsr %1, %0; xor $0x3f, %0" : "=r" (res) : "m" (x));
+    asm("bsr %1, %0\nxor $0x3f, %0" : "=r" (res) : "rm" (x) : "cc", "flags");
   #endif
     return res;
   }
