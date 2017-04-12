@@ -19,7 +19,7 @@
 #include <iomanip>
 #include <cinttypes>
 #include <cuda.h>
-#include <math.h>
+#include <cmath>
 #include <string>
 #include <vector>
 #include <iterator>
