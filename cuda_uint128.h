@@ -103,13 +103,23 @@ public:
           : "l" (lo), "l" (hi),
             "l" (temp.lo), "l" (temp.hi));
     return *this;
-  #else
+  #elif __x86_64__
     asm(  "add    %q2, %q0\n\t"
           "adc    %q3, %q1\n\t"
           : "+r" (lo), "+r" (hi)
           : "r" (temp.lo), "r" (temp.hi)
           : "cc");
     return *this;
+  #elif __aarch64__
+    asm(  "adds   %0, %2, %4\n\t"
+          "adc    %1, %3, %5\n\t"
+          : "=&r" (lo), "=r" (hi)
+          : "r" (lo), "r" (hi),
+            "r" (temp.lo), "r" (temp.hi)
+          : "cc");
+    return *this;
+  #else
+  # error Architecture not supported
   #endif
   }
 
@@ -364,8 +374,12 @@ template <typename T>
     res = __clzll(x);
   #elif __GNUC__ || uint128_t_has_builtin(__builtin_clzll)
     res = __builtin_clzll(x);
-  #else
+  #elif __x86_64__
     asm("bsr %1, %0\nxor $0x3f, %0" : "=r" (res) : "rm" (x) : "cc", "flags");
+  #elif __aarch64__
+    asm("clz %0, %1" : "=r" (res) : "r" (x));
+  #else
+  # error Architecture not supported
   #endif
     return res;
   }
@@ -432,7 +446,7 @@ template <typename T>
 #endif
   static inline uint128_t add128(uint128_t x, uint128_t y)
   {
-   #ifdef __CUDA_ARCH__
+  #ifdef __CUDA_ARCH__
     uint128_t res;
     asm(  "add.cc.u64    %0, %2, %4;\n\t"
           "addc.u64      %1, %3, %5;\n\t"
@@ -440,13 +454,24 @@ template <typename T>
           : "l" (x.lo), "l" (x.hi),
             "l" (y.lo), "l" (y.hi));
     return res;
-  #else
+  #elif __x86_64__
     asm(  "add    %q2, %q0\n\t"
           "adc    %q3, %q1\n\t"
           : "+r" (x.lo), "+r" (x.hi)
           : "r" (y.lo), "r" (y.hi)
           : "cc");
     return x;
+  #elif __aarch64__
+    uint128_t res;
+    asm(  "adds   %0, %2, %4\n\t"
+          "adc    %1, %3, %5\n\t"
+          : "=&r" (res.lo), "=r" (res.hi)
+          : "r" (x.lo), "r" (x.hi),
+            "ri" (y.lo), "ri" (y.hi)
+          : "cc");
+    return res;
+  #else
+  # error Architecture not supported
   #endif
   }
 
@@ -463,13 +488,24 @@ template <typename T>
           : "l" (x.lo) "l" (x.hi)
             "l" (y));
     return res;
-  #else
+  #elif __x86_64__
     asm(  "add    %q2, %q0\n\t"
           "adc    $0, %q1\n\t"
           : "+r" (x.lo), "+r" (x.hi)
           : "r" (y)
           : "cc");
     return x;
+  #elif __aarch64__
+    uint128_t res;
+    asm(  "adds   %0, %2, %4\n\t"
+          "adc    %1, %3, xzr\n\t"
+          : "=&r" (res.lo), "=r" (res.hi)
+          : "r" (x.lo), "r" (x.hi),
+            "ri" (y)
+          : "cc");
+    return res;
+  #else
+  # error Architecture not supported
   #endif
   }
 
@@ -482,10 +518,17 @@ template <typename T>
   #ifdef __CUDA_ARCH__
     res.lo = x * y;
     res.hi = __mul64hi(x, y);
-  #else
+  #elif __x86_64__
     asm( "mulq %3\n\t"
          : "=a" (res.lo), "=d" (res.hi)
          : "%0" (x), "rm" (y));
+  #elif __aarch64__
+    asm( "mul %0, %2, %3\n\t"
+         "umulh %1, %2, %3\n\t"
+         : "=&r" (res.lo), "=r" (res.hi)
+         : "r" (x), "r" (y));
+  #else
+  # error Architecture not supported
   #endif
     return res;
   }
@@ -500,11 +543,19 @@ template <typename T>
     res.lo = x.lo * y;
     res.hi = __mul64hi(x.lo, y);
     res.hi += x.hi * y;
-  #else
+  #elif __x86_64__
     asm( "mulq %3\n\t"
          : "=a" (res.lo), "=d" (res.hi)
          : "%0" (x.lo), "rm" (y));
     res.hi += x.hi * y;
+  #elif __aarch64__
+    res.lo = x.lo * y;
+    asm( "umulh %0, %1, %2\n\t"
+         : "=r" (res.hi)
+         : "r" (x.lo), "r" (y));
+    res.hi += x.hi * y;
+  #else
+  # error Architecture not supported
   #endif
     return res;
   }
