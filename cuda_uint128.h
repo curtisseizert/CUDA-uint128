@@ -141,8 +141,13 @@ public:
 #endif
   inline uint128_t & operator>>=(const T & b)
   {
-    lo = (lo >> b) | (hi << (int)(b - 64));
-    (b < 64) ? hi >>= b : hi = 0;
+    if (b < 64) {
+      lo = (lo >> b) | (hi << (64-b));
+      hi >>= b;
+    } else {
+      lo = hi >> (b-64);
+      hi = 0;
+    }
     return *this;
   }
 
@@ -152,8 +157,13 @@ public:
 #endif
   inline uint128_t & operator<<=(const T & b)
   {
-    hi = (hi << b) | (lo << (int)(b - 64));
-    (b < 64) ? lo <<= b : lo = 0;
+    if (b < 64) {
+      hi = (hi << b) | (lo >> (64-b));
+      lo <<= b;
+    } else {
+      hi = lo << (b-64);
+      lo = 0;
+    }
     return *this;
   }
 
@@ -484,8 +494,8 @@ template <typename T>
     uint128_t res;
     asm(  "add.cc.u64    %0, %2, %4;\n\t"
           "addc.u64      %1, %3, 0;\n\t"
-          : "=l" (res.lo) "=l" (res.hi)
-          : "l" (x.lo) "l" (x.hi)
+          : "=l" (res.lo), "=l" (res.hi)
+          : "l" (x.lo), "l" (x.hi)
             "l" (y));
     return res;
   #elif __x86_64__
@@ -517,7 +527,7 @@ template <typename T>
     uint128_t res;
   #ifdef __CUDA_ARCH__
     res.lo = x * y;
-    res.hi = __mul64hi(x, y);
+    res.hi = __umul64hi(x, y);
   #elif __x86_64__
     asm( "mulq %3\n\t"
          : "=a" (res.lo), "=d" (res.hi)
@@ -541,7 +551,7 @@ template <typename T>
     uint128_t res;
   #ifdef __CUDA_ARCH__
     res.lo = x.lo * y;
-    res.hi = __mul64hi(x.lo, y);
+    res.hi = __umul64hi(x.lo, y);
     res.hi += x.hi * y;
   #elif __x86_64__
     asm( "mulq %3\n\t"
