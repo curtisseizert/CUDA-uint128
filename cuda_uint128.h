@@ -163,10 +163,12 @@ public:
 #endif
   inline uint128_t & operator>>=(const T & b)
   {
-    if (b < 64) {
+    if (b == 0) {
+      return *this;
+    } else if (b < 64) {
       lo = (lo >> b) | (hi << (64-b));
       hi >>= b;
-    } else {
+    } else {        // note that b >= 128 is undefined
       lo = hi >> (b-64);
       hi = 0;
     }
@@ -179,10 +181,12 @@ public:
 #endif
   inline uint128_t & operator<<=(const T & b)
   {
-    if (b < 64) {
+    if (b == 0) {
+      return *this;
+    } else if (b < 64) {
       hi = (hi << b) | (lo >> (64-b));
       lo <<= b;
-    } else {
+    } else {        // note that b >= 128 is undefined
       hi = lo << (b-64);
       lo = 0;
     }
