@@ -621,7 +621,7 @@ template <typename T>
       un64 = (x.hi << s) | ((x.lo >> (64 - s)) & (-s >> 31));
       un10 = x.lo << s;
     }else{
-      un64 = x.lo | x.hi;
+      un64 = x.hi;
       un10 = x.lo;
     }
 
