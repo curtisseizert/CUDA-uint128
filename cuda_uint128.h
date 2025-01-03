@@ -145,15 +145,24 @@ public:
   #endif
   }
 
-  template <typename T>
 #ifdef __CUDA_ARCH__
   __host__ __device__
 #endif
-  inline uint128_t & operator-=(const T & b)
+  inline uint128_t & operator-=(const uint128_t & b)
   {
-    uint128_t temp = (uint128_t)b;
-    if(lo < temp.lo) hi--;
-    lo -= temp.lo;
+    if(lo < b.lo) hi--;
+    lo -= b.lo;
+    hi -= b.hi;
+    return * this;
+  }
+
+#ifdef __CUDA_ARCH__
+  __host__ __device__
+#endif
+  inline uint128_t & operator-=(const uint64_t & b)
+  {
+    if(lo < b) hi--;
+    lo -= b;
     return * this;
   }
 
