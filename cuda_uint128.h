@@ -517,7 +517,7 @@ template <typename T>
     asm(  "add.cc.u64    %0, %2, %4;\n\t"
           "addc.u64      %1, %3, 0;\n\t"
           : "=l" (res.lo), "=l" (res.hi)
-          : "l" (x.lo), "l" (x.hi)
+          : "l" (x.lo), "l" (x.hi),
             "l" (y));
     return res;
   #elif __x86_64__
